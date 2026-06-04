@@ -40,6 +40,28 @@ function japanDateTimeRangeToIso(value: string) {
   return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
+function dateTimeLocalToIso(startValue: string, endValue: string) {
+  const startMatch = startValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  const endMatch = endValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!startMatch || !endMatch) return null;
+
+  const [, startYear, startMonth, startDay, startHour, startMinute] = startMatch.map(Number);
+  const [, endYear, endMonth, endDay, endHour, endMinute] = endMatch.map(Number);
+  const start = new Date(Date.UTC(startYear, startMonth - 1, startDay, startHour - 9, startMinute));
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay, endHour - 9, endMinute));
+  if (end <= start) return null;
+
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+function eventDateTimeRangeToIso(formData: FormData) {
+  const startDatetime = readString(formData, "start_datetime");
+  const endDatetime = readString(formData, "end_datetime");
+  if (startDatetime || endDatetime) return dateTimeLocalToIso(startDatetime, endDatetime);
+
+  return japanDateTimeRangeToIso(readString(formData, "datetime_range"));
+}
+
 function eventTitle(category: string, opponent: string) {
   if ((category === "練習試合" || category === "県リーグ") && opponent) {
     return `${category} vs ${opponent}`;
@@ -142,12 +164,9 @@ export async function createEventAction(formData: FormData) {
   const title = eventTitle(category, opponent);
   const description = readString(formData, "description");
   const location = readString(formData, "location");
-  const datetimeRange = readString(formData, "datetime_range");
+  const range = eventDateTimeRangeToIso(formData);
 
-  if (!category || !datetimeRange) return;
-
-  const range = japanDateTimeRangeToIso(datetimeRange);
-  if (!range) return;
+  if (!category || !range) return;
 
   await sql`
     INSERT INTO events (id, organization_id, title, description, location, start_at, end_at, created_by)
@@ -166,12 +185,9 @@ export async function updateEventAction(formData: FormData) {
   const title = eventTitle(category, opponent);
   const description = readString(formData, "description");
   const location = readString(formData, "location");
-  const datetimeRange = readString(formData, "datetime_range");
+  const range = eventDateTimeRangeToIso(formData);
 
-  if (!eventId || !category || !datetimeRange) return;
-
-  const range = japanDateTimeRangeToIso(datetimeRange);
-  if (!range) return;
+  if (!eventId || !category || !range) return;
 
   await sql`
     UPDATE events

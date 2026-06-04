@@ -1,26 +1,72 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
-import { sql } from "@/lib/db";
+import { ensureSchema, sql } from "@/lib/db";
+import { verifyPassword } from "@/lib/security";
 
-export async function GET() {
-  const user = await requireUser();
+type BackupPayload = {
+  members?: Record<string, unknown>[];
+  events?: Record<string, unknown>[];
+  rsvps?: Record<string, unknown>[];
+};
 
-  const [organization, members, events, rsvps] = await Promise.all([
-    sql`SELECT id, name, code, active, created_at FROM organizations WHERE id = ${user.organization_id}`,
-    sql`SELECT id, name, email, role, active, created_at FROM members WHERE organization_id = ${user.organization_id} ORDER BY created_at ASC`,
-    sql`SELECT id, sheet_id, title, description, location, start_at, end_at, created_by, created_at FROM events WHERE organization_id = ${user.organization_id} ORDER BY start_at ASC`,
+type BackupRequestBody = {
+  action?: "download" | "restore";
+  organizationCode?: string;
+  adminPasscode?: string;
+  backup?: BackupPayload;
+};
+
+type OrganizationRow = {
+  id: string;
+  name: string;
+  code: string;
+  active: boolean;
+  created_at: string;
+  admin_passcode_hash: string;
+};
+
+async function verifyOrganizationPasscode(organizationCode: string, adminPasscode: string) {
+  await ensureSchema();
+  const code = organizationCode.trim().toUpperCase();
+  if (!code || !adminPasscode) return null;
+
+  const { rows } = await sql`
+    SELECT id, name, code, active, created_at, admin_passcode_hash
+    FROM organizations
+    WHERE code = ${code}
+    LIMIT 1
+  `;
+  const organization = rows[0] as OrganizationRow | undefined;
+  if (!organization || !verifyPassword(adminPasscode, organization.admin_passcode_hash)) return null;
+
+  return organization;
+}
+
+function value(row: Record<string, unknown>, key: string, fallback: unknown = null) {
+  return row[key] ?? fallback;
+}
+
+async function buildBackupResponse(organization: OrganizationRow) {
+  const [members, events, rsvps] = await Promise.all([
+    sql`SELECT id, name, email, role, active, created_at FROM members WHERE organization_id = ${organization.id} ORDER BY created_at ASC`,
+    sql`SELECT id, sheet_id, title, description, location, start_at, end_at, created_by, created_at FROM events WHERE organization_id = ${organization.id} ORDER BY start_at ASC`,
     sql`
       SELECT rsvps.event_id, rsvps.user_id, rsvps.status, rsvps.note, rsvps.updated_at
       FROM rsvps
       INNER JOIN events ON events.id = rsvps.event_id
-      WHERE events.organization_id = ${user.organization_id}
+      WHERE events.organization_id = ${organization.id}
       ORDER BY rsvps.updated_at ASC
     `,
   ]);
 
   return NextResponse.json({
     exportedAt: new Date().toISOString(),
-    organization: organization.rows[0],
+    organization: {
+      id: organization.id,
+      name: organization.name,
+      code: organization.code,
+      active: organization.active,
+      created_at: organization.created_at,
+    },
     members: members.rows,
     events: events.rows,
     rsvps: rsvps.rows,
@@ -28,16 +74,29 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser();
-  const body = (await request.json()) as { backup?: { members?: any[]; events?: any[]; rsvps?: any[] } };
+  const body = (await request.json()) as BackupRequestBody;
+  const organization = await verifyOrganizationPasscode(body.organizationCode ?? "", body.adminPasscode ?? "");
+
+  if (!organization) {
+    return NextResponse.json({ error: "Invalid organization code or admin passcode." }, { status: 403 });
+  }
+
+  if (body.action === "download") {
+    return buildBackupResponse(organization);
+  }
+
+  if (!body.backup) {
+    return NextResponse.json({ error: "Backup file is required." }, { status: 400 });
+  }
 
   const backup = body.backup ?? {};
   for (const member of backup.members ?? []) {
     await sql`
       INSERT INTO members (id, organization_id, name, email, password_hash, role, active, created_at)
-      VALUES (${member.id}, ${user.organization_id}, ${member.name}, ${member.email}, 'restored-no-password', ${member.role}, ${member.active ?? true}, ${member.created_at ?? new Date().toISOString()})
+      VALUES (${value(member, "id")}, ${organization.id}, ${value(member, "name")}, ${value(member, "email")}, 'restored-no-password', ${value(member, "role", "member")}, ${value(member, "active", true)}, ${value(member, "created_at", new Date().toISOString())})
       ON CONFLICT (id) DO UPDATE
       SET name = EXCLUDED.name,
+          email = EXCLUDED.email,
           role = EXCLUDED.role,
           active = EXCLUDED.active
     `;
@@ -46,7 +105,7 @@ export async function POST(request: Request) {
   for (const event of backup.events ?? []) {
     await sql`
       INSERT INTO events (id, organization_id, sheet_id, title, description, location, start_at, end_at, created_by, created_at)
-      VALUES (${event.id}, ${user.organization_id}, ${event.sheet_id ?? null}, ${event.title}, ${event.description ?? null}, ${event.location ?? null}, ${event.start_at}, ${event.end_at}, ${event.created_by ?? null}, ${event.created_at ?? new Date().toISOString()})
+      VALUES (${value(event, "id")}, ${organization.id}, ${value(event, "sheet_id")}, ${value(event, "title")}, ${value(event, "description")}, ${value(event, "location")}, ${value(event, "start_at")}, ${value(event, "end_at")}, ${value(event, "created_by")}, ${value(event, "created_at", new Date().toISOString())})
       ON CONFLICT (id) DO UPDATE
       SET title = EXCLUDED.title,
           description = EXCLUDED.description,
@@ -59,7 +118,7 @@ export async function POST(request: Request) {
   for (const rsvp of backup.rsvps ?? []) {
     await sql`
       INSERT INTO rsvps (event_id, user_id, status, note, updated_at)
-      VALUES (${rsvp.event_id}, ${rsvp.user_id}, ${rsvp.status}, ${rsvp.note ?? null}, ${rsvp.updated_at ?? new Date().toISOString()})
+      VALUES (${value(rsvp, "event_id")}, ${value(rsvp, "user_id")}, ${value(rsvp, "status")}, ${value(rsvp, "note")}, ${value(rsvp, "updated_at", new Date().toISOString())})
       ON CONFLICT (event_id, user_id) DO UPDATE
       SET status = EXCLUDED.status,
           note = EXCLUDED.note,
