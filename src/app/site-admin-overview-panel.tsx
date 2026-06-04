@@ -63,7 +63,7 @@ export function SiteAdminOverviewPanel({ embedded = false }: SiteAdminOverviewPa
                   <strong>{organization.name}</strong>
                   <span>{organization.code}</span>
                 </div>
-                <em>{organization.active ? "運用中" : "休止中"}</em>
+                <em>{organization.active ? "有効" : "無効"}</em>
               </div>
 
               <div className="site-admin-section">

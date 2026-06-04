@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { loginAsMember, logout, requireUser, verifyAdminPasscode } from "@/lib/auth";
+import { loginAsMember, logout, requireUser } from "@/lib/auth";
 import { ensureSchema, sql } from "@/lib/db";
 import { hashPassword } from "@/lib/security";
 import { verifySiteAdmin } from "@/lib/site-admin";
@@ -356,37 +356,6 @@ export async function deleteEventAction(formData: FormData) {
 
   await sql`DELETE FROM events WHERE id = ${eventId} AND organization_id = ${user.organization_id}`;
   revalidatePath("/");
-}
-
-export async function suspendOrganizationAction(formData: FormData) {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return;
-
-  await sql`UPDATE organizations SET active = FALSE WHERE id = ${user.organization_id}`;
-  await logout();
-  redirect("/");
-}
-
-export async function deleteOrganizationAction(formData: FormData) {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return;
-
-  const confirmationCode = readString(formData, "confirmation_code").toUpperCase();
-  if (confirmationCode !== user.organization_code) return;
-
-  await sql`DELETE FROM organizations WHERE id = ${user.organization_id}`;
-  await logout();
-  redirect("/");
-}
-
-export async function suspendOrganizationFromTopAction(formData: FormData) {
-  if (!siteAdminIsValid(formData)) return;
-
-  await ensureSchema();
-  const code = readString(formData, "organization_code").toUpperCase();
-
-  await sql`UPDATE organizations SET active = FALSE WHERE code = ${code}`;
-  redirect("/");
 }
 
 export async function deleteOrganizationFromTopAction(formData: FormData) {

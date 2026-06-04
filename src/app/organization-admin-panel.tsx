@@ -3,7 +3,6 @@
 import {
   changeOrganizationPasscodeFromTopAction,
   deleteOrganizationFromTopAction,
-  suspendOrganizationFromTopAction,
 } from "@/app/actions";
 import { OrganizationForm } from "@/app/organization-form";
 
@@ -41,25 +40,6 @@ export function OrganizationAdminPanel() {
         <SiteAdminFields />
         <button className="secondary-button" type="submit">
           団体パスコードを変更
-        </button>
-      </form>
-
-      <form
-        action={suspendOrganizationFromTopAction}
-        className="stack-form member-control-form"
-        onSubmit={(event) => {
-          if (!window.confirm("この団体を休止しますか？休止後はログインできなくなります。")) {
-            event.preventDefault();
-          }
-        }}
-      >
-        <label>
-          <span>団体コード</span>
-          <input name="organization_code" required />
-        </label>
-        <SiteAdminFields />
-        <button className="danger-button" type="submit">
-          団体を休止
         </button>
       </form>
 
