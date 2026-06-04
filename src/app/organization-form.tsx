@@ -24,12 +24,16 @@ export function OrganizationForm() {
           <input name="organization_code" placeholder="GENS" required />
         </label>
         <label>
-          <span>最初の管理者名</span>
-          <input name="admin_name" defaultValue="管理者" required />
+          <span>初期メンバー名</span>
+          <input name="admin_name" defaultValue="メンバー" required />
         </label>
         <label>
-          <span>管理者パスコード</span>
-          <input name="admin_passcode" type="password" autoComplete="new-password" required />
+          <span>サイト管理者ID</span>
+          <input name="site_admin_username" defaultValue="sugaya" autoComplete="username" required />
+        </label>
+        <label>
+          <span>サイト管理者パスワード</span>
+          <input name="site_admin_password" type="password" autoComplete="current-password" required />
         </label>
         {state.message ? <p className="form-message">{state.message}</p> : null}
         <button className="secondary-button" type="submit" disabled={pending}>

@@ -103,13 +103,13 @@ async function createSchema() {
   await sql`CREATE INDEX IF NOT EXISTS idx_members_organization_id ON members(organization_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`;
 
-  await seedAdmin(defaultOrgId);
+  await seedDefaultMember(defaultOrgId);
 }
 
 async function ensureDefaultOrganization() {
   const code = (process.env.ORGANIZATION_CODE ?? "GENS").trim().toUpperCase();
   const name = process.env.ORGANIZATION_NAME?.trim() || "GENS";
-  const passcode = process.env.ADMIN_PASSCODE || process.env.ADMIN_PASSWORD || "change-this-passcode";
+  const passcode = process.env.SITE_ADMIN_PASSWORD || crypto.randomUUID();
 
   const existing = await sql`SELECT id FROM organizations WHERE code = ${code} LIMIT 1`;
   if (existing.rows[0]) return String(existing.rows[0].id);
@@ -122,16 +122,13 @@ async function ensureDefaultOrganization() {
   return id;
 }
 
-async function seedAdmin(organizationId: string) {
-  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD;
-  const name = process.env.ADMIN_NAME?.trim() || "Admin";
-
-  if (!email || !password) return;
+async function seedDefaultMember(organizationId: string) {
+  const name = "メンバー";
+  const email = `member-${organizationId}@members.local`;
 
   await sql`
     INSERT INTO members (id, organization_id, name, email, password_hash, role)
-    VALUES (${crypto.randomUUID()}, ${organizationId}, ${name}, ${email}, ${hashPassword(password)}, 'admin')
+    VALUES (${crypto.randomUUID()}, ${organizationId}, ${name}, ${email}, ${hashPassword(crypto.randomUUID())}, 'member')
     ON CONFLICT (organization_id, email) DO NOTHING
   `;
 }

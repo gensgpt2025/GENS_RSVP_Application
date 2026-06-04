@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureSchema, sql } from "@/lib/db";
-import { verifyPassword } from "@/lib/security";
+import { verifySiteAdmin } from "@/lib/site-admin";
 
 type BackupPayload = {
   members?: Record<string, unknown>[];
@@ -11,7 +11,8 @@ type BackupPayload = {
 type BackupRequestBody = {
   action?: "download" | "restore";
   organizationCode?: string;
-  adminPasscode?: string;
+  siteAdminUsername?: string;
+  siteAdminPassword?: string;
   backup?: BackupPayload;
 };
 
@@ -21,24 +22,20 @@ type OrganizationRow = {
   code: string;
   active: boolean;
   created_at: string;
-  admin_passcode_hash: string;
 };
 
-async function verifyOrganizationPasscode(organizationCode: string, adminPasscode: string) {
+async function getOrganizationForSiteAdmin(organizationCode: string, siteAdminUsername: string, siteAdminPassword: string) {
   await ensureSchema();
   const code = organizationCode.trim().toUpperCase();
-  if (!code || !adminPasscode) return null;
+  if (!code || !verifySiteAdmin(siteAdminUsername, siteAdminPassword)) return null;
 
   const { rows } = await sql`
-    SELECT id, name, code, active, created_at, admin_passcode_hash
+    SELECT id, name, code, active, created_at
     FROM organizations
     WHERE code = ${code}
     LIMIT 1
   `;
-  const organization = rows[0] as OrganizationRow | undefined;
-  if (!organization || !verifyPassword(adminPasscode, organization.admin_passcode_hash)) return null;
-
-  return organization;
+  return (rows[0] as OrganizationRow | undefined) ?? null;
 }
 
 function value(row: Record<string, unknown>, key: string, fallback: unknown = null) {
@@ -75,10 +72,14 @@ async function buildBackupResponse(organization: OrganizationRow) {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as BackupRequestBody;
-  const organization = await verifyOrganizationPasscode(body.organizationCode ?? "", body.adminPasscode ?? "");
+  const organization = await getOrganizationForSiteAdmin(
+    body.organizationCode ?? "",
+    body.siteAdminUsername ?? "",
+    body.siteAdminPassword ?? "",
+  );
 
   if (!organization) {
-    return NextResponse.json({ error: "Invalid organization code or admin passcode." }, { status: 403 });
+    return NextResponse.json({ error: "Invalid organization code or site admin credentials." }, { status: 403 });
   }
 
   if (body.action === "download") {

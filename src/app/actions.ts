@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { loginAsMember, logout, requireUser, verifyAdminPasscode } from "@/lib/auth";
 import { ensureSchema, sql } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/security";
+import { hashPassword } from "@/lib/security";
+import { verifySiteAdmin } from "@/lib/site-admin";
 import type { RsvpStatus } from "@/lib/types";
 
 export type MemberFormState = {
@@ -19,6 +20,10 @@ export type OrganizationFormState = {
 
 function readString(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
+}
+
+function siteAdminIsValid(formData: FormData) {
+  return verifySiteAdmin(readString(formData, "site_admin_username"), readString(formData, "site_admin_password"));
 }
 
 function japanDateTimeRangeToIso(value: string) {
@@ -124,14 +129,16 @@ export async function logoutAction() {
 
 export async function createOrganizationAction(_: OrganizationFormState, formData: FormData): Promise<OrganizationFormState> {
   await ensureSchema();
+  if (!siteAdminIsValid(formData)) {
+    return { message: "サイト管理者の認証に失敗しました。" };
+  }
 
   const name = readString(formData, "organization_name");
   const code = readString(formData, "organization_code").toUpperCase();
-  const adminName = readString(formData, "admin_name") || "管理者";
-  const adminPasscode = readString(formData, "admin_passcode");
+  const adminName = readString(formData, "admin_name") || "メンバー";
 
-  if (!name || !code || !adminPasscode) {
-    return { message: "団体名、団体コード、管理者パスコードを入力してください。" };
+  if (!name || !code) {
+    return { message: "団体名と団体コードを入力してください。" };
   }
 
   if (!/^[A-Z0-9_-]{3,24}$/.test(code)) {
@@ -142,7 +149,7 @@ export async function createOrganizationAction(_: OrganizationFormState, formDat
   try {
     await sql`
       INSERT INTO organizations (id, name, code, admin_passcode_hash)
-      VALUES (${organizationId}, ${name}, ${code}, ${hashPassword(adminPasscode)})
+      VALUES (${organizationId}, ${name}, ${code}, ${hashPassword(crypto.randomUUID())})
     `;
 
     await sql`
@@ -299,36 +306,40 @@ export async function deleteOrganizationAction(formData: FormData) {
   redirect("/");
 }
 
-async function verifyOrganizationPasscode(organizationCode: string, passcode: string) {
-  await ensureSchema();
-  const code = organizationCode.trim().toUpperCase();
-  const { rows } = await sql`
-    SELECT id, code, admin_passcode_hash
-    FROM organizations
-    WHERE code = ${code}
-      AND active = TRUE
-    LIMIT 1
-  `;
-  const organization = rows[0] as { id: string; code: string; admin_passcode_hash: string } | undefined;
-  if (!organization || !verifyPassword(passcode, organization.admin_passcode_hash)) return null;
-  return organization;
-}
-
 export async function suspendOrganizationFromTopAction(formData: FormData) {
-  const organization = await verifyOrganizationPasscode(readString(formData, "organization_code"), readString(formData, "admin_passcode"));
-  if (!organization) return;
+  if (!siteAdminIsValid(formData)) return;
 
-  await sql`UPDATE organizations SET active = FALSE WHERE id = ${organization.id}`;
+  await ensureSchema();
+  const code = readString(formData, "organization_code").toUpperCase();
+
+  await sql`UPDATE organizations SET active = FALSE WHERE code = ${code}`;
   redirect("/");
 }
 
 export async function deleteOrganizationFromTopAction(formData: FormData) {
-  const organization = await verifyOrganizationPasscode(readString(formData, "organization_code"), readString(formData, "admin_passcode"));
-  if (!organization) return;
+  if (!siteAdminIsValid(formData)) return;
 
   const confirmationCode = readString(formData, "confirmation_code").toUpperCase();
-  if (confirmationCode !== organization.code) return;
+  const code = readString(formData, "organization_code").toUpperCase();
+  if (confirmationCode !== code) return;
 
-  await sql`DELETE FROM organizations WHERE id = ${organization.id}`;
+  await ensureSchema();
+  await sql`DELETE FROM organizations WHERE code = ${code}`;
+  redirect("/");
+}
+
+export async function changeOrganizationPasscodeFromTopAction(formData: FormData) {
+  if (!siteAdminIsValid(formData)) return;
+
+  const code = readString(formData, "organization_code").toUpperCase();
+  const newPasscode = readString(formData, "new_admin_passcode");
+  if (!code || newPasscode.length < 4) return;
+
+  await ensureSchema();
+  await sql`
+    UPDATE organizations
+    SET admin_passcode_hash = ${hashPassword(newPasscode)}
+    WHERE code = ${code}
+  `;
   redirect("/");
 }

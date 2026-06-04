@@ -9,14 +9,15 @@ export function BackupPanel() {
   async function downloadBackup(formData: FormData) {
     setMessage("");
     const organizationCode = String(formData.get("organization_code") ?? "").trim();
-    const adminPasscode = String(formData.get("admin_passcode") ?? "");
+    const siteAdminUsername = String(formData.get("site_admin_username") ?? "").trim();
+    const siteAdminPassword = String(formData.get("site_admin_password") ?? "");
     const response = await fetch("/api/organization/backup", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "download", organizationCode, adminPasscode }),
+      body: JSON.stringify({ action: "download", organizationCode, siteAdminUsername, siteAdminPassword }),
     });
     if (!response.ok) {
-      setMessage("バックアップできませんでした。団体コードと管理者パスコードを確認してください。");
+      setMessage("バックアップできませんでした。団体コードとサイト管理者情報を確認してください。");
       return;
     }
 
@@ -33,7 +34,8 @@ export function BackupPanel() {
   async function restoreBackup(formData: FormData) {
     setMessage("");
     const organizationCode = String(formData.get("organization_code") ?? "").trim();
-    const adminPasscode = String(formData.get("admin_passcode") ?? "");
+    const siteAdminUsername = String(formData.get("site_admin_username") ?? "").trim();
+    const siteAdminPassword = String(formData.get("site_admin_password") ?? "");
     const file = formData.get("backup_file");
     if (!(file instanceof File)) return;
 
@@ -42,13 +44,13 @@ export function BackupPanel() {
       const response = await fetch("/api/organization/backup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ organizationCode, adminPasscode, backup }),
+        body: JSON.stringify({ organizationCode, siteAdminUsername, siteAdminPassword, backup }),
       });
 
       setMessage(
         response.ok
           ? "復旧しました。団体コードで入室して内容を確認してください。"
-          : "復旧できませんでした。団体コード、管理者パスコード、ファイルを確認してください。",
+          : "復旧できませんでした。団体コード、サイト管理者情報、ファイルを確認してください。",
       );
     } catch {
       setMessage("復旧できませんでした。JSON形式のバックアップファイルを選んでください。");
@@ -65,8 +67,12 @@ export function BackupPanel() {
           <input name="organization_code" required />
         </label>
         <label>
-          <span>管理者パスコード</span>
-          <input name="admin_passcode" type="password" autoComplete="current-password" required />
+          <span>サイト管理者ID</span>
+          <input name="site_admin_username" defaultValue="sugaya" autoComplete="username" required />
+        </label>
+        <label>
+          <span>サイト管理者パスワード</span>
+          <input name="site_admin_password" type="password" autoComplete="current-password" required />
         </label>
         <button className="secondary-button" type="submit">
           <Download size={18} />
@@ -80,8 +86,12 @@ export function BackupPanel() {
           <input name="organization_code" required />
         </label>
         <label>
-          <span>管理者パスコード</span>
-          <input name="admin_passcode" type="password" autoComplete="current-password" required />
+          <span>サイト管理者ID</span>
+          <input name="site_admin_username" defaultValue="sugaya" autoComplete="username" required />
+        </label>
+        <label>
+          <span>サイト管理者パスワード</span>
+          <input name="site_admin_password" type="password" autoComplete="current-password" required />
         </label>
         <label>
           <span>バックアップファイル</span>

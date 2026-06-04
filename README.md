@@ -4,12 +4,13 @@ Private schedule and RSVP management app for pre-registered members.
 
 ## Features
 
-- Member-only login
-- Admin-only member registration
-- Admin-only event creation
+- Organization-code login with member selection
+- Member registration from inside each organization
+- Event creation, editing, and deletion from inside each organization
 - RSVP responses: attending, declined, maybe
 - Google Calendar link and `.ics` export
 - App-only event and member management, without spreadsheet sync
+- Site-admin-only organization management, backup, restore, and organization passcode changes
 - Persistent storage with Neon Postgres on Vercel
 
 ## Environment Variables
@@ -20,22 +21,20 @@ Use a new database for this app. Do not reuse the existing `GENS_RSVP` database 
 
 ```env
 DATABASE_URL="postgres://user:password@host/gens_schedule_distribution?sslmode=require"
+SITE_ADMIN_USERNAME="sugaya"
+SITE_ADMIN_PASSWORD="change-this-site-admin-password"
 ORGANIZATION_NAME="GENS"
 ORGANIZATION_CODE="GENS"
-ADMIN_PASSCODE="change-this-passcode"
-ADMIN_EMAIL="admin@example.com"
-ADMIN_PASSWORD="change-this-password"
-ADMIN_NAME="Admin"
 ```
 
-The app creates its tables automatically on first access. `ORGANIZATION_NAME`, `ORGANIZATION_CODE`, and `ADMIN_PASSCODE` create the first organization. If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, the first admin member is also created automatically.
+The app creates its tables automatically on first access. `ORGANIZATION_NAME` and `ORGANIZATION_CODE` create the first organization and an initial selectable member.
 
-Login stays lightweight: users enter an organization code and select their member name. Admin-only operations require the organization's admin passcode.
+Login stays lightweight: users enter an organization code and select their member name. Organization management, backup, restore, and organization passcode changes require the site admin credentials. The default site admin username is `sugaya`; set `SITE_ADMIN_PASSWORD` on Vercel.
 
 ## Permissions
 
-- Admin: create, edit, and delete events; add and delete members; back up and restore organization data; suspend or delete the organization
-- Member: view events and answer RSVP
+- Site admin: create, suspend, and delete organizations; change organization passcodes; back up and restore organization data
+- Organization members: view, create, edit, and delete events; add and delete members; answer RSVP
 
 Organization data is scoped by `organization_id`, so members, events, RSVPs, ICS downloads, calendar views, history, backup, and restore are limited to the logged-in organization.
 
