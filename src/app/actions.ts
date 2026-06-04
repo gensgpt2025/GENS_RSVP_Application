@@ -74,6 +74,14 @@ function eventDateAndTimesToIso(dateValue: string, startTimeValue: string, endTi
 
 function eventDateTimeRangeToIso(formData: FormData) {
   const eventDate = readString(formData, "event_date");
+  const startHour = readString(formData, "start_hour");
+  const startMinute = readString(formData, "start_minute");
+  const endHour = readString(formData, "end_hour");
+  const endMinute = readString(formData, "end_minute");
+  if (eventDate || startHour || startMinute || endHour || endMinute) {
+    return eventDateAndTimesToIso(eventDate, `${startHour}:${startMinute}`, `${endHour}:${endMinute}`);
+  }
+
   const startTime = readString(formData, "start_time");
   const endTime = readString(formData, "end_time");
   if (eventDate || startTime || endTime) return eventDateAndTimesToIso(eventDate, startTime, endTime);

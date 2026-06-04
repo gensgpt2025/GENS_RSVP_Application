@@ -4,14 +4,13 @@ import { useMemo, useState } from "react";
 import { CalendarPlus } from "lucide-react";
 
 const categories = ["練習試合", "県リーグ", "トレーニング"];
-const timeOptions = Array.from({ length: 24 * 6 }, (_, index) => {
-  const totalMinutes = index * 10;
-  const hour = Math.floor(totalMinutes / 60)
-    .toString()
-    .padStart(2, "0");
-  const minute = (totalMinutes % 60).toString().padStart(2, "0");
-  return `${hour}:${minute}`;
-});
+const hourOptions = Array.from({ length: 24 }, (_, hour) => hour.toString().padStart(2, "0"));
+const minuteOptions = ["00", "10", "20", "30", "40", "50"];
+
+function splitTime(value?: string) {
+  const [hour = "", minute = ""] = (value ?? "").split(":");
+  return { hour, minute };
+}
 
 type EventFormProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -33,6 +32,8 @@ export function EventForm({ action, buttonLabel, requireAdminPasscode = true, de
   const initialCategory = defaults?.category && categories.includes(defaults.category) ? defaults.category : categories[0];
   const [category, setCategory] = useState(initialCategory);
   const needsOpponent = useMemo(() => category === "練習試合" || category === "県リーグ", [category]);
+  const start = splitTime(defaults?.startTime);
+  const end = splitTime(defaults?.endTime);
 
   return (
     <form action={action} className="stack-form">
@@ -45,30 +46,54 @@ export function EventForm({ action, buttonLabel, requireAdminPasscode = true, de
 
       <label>
         <span>開始時間</span>
-        <select name="start_time" defaultValue={defaults?.startTime ?? ""} required>
-          <option value="" disabled>
-            開始時間を選択
-          </option>
-          {timeOptions.map((time) => (
-            <option value={time} key={time}>
-              {time}
+        <div className="time-picker-row">
+          <select name="start_hour" defaultValue={start.hour} required>
+            <option value="" disabled>
+              時
             </option>
-          ))}
-        </select>
+            {hourOptions.map((hour) => (
+              <option value={hour} key={hour}>
+                {hour}時
+              </option>
+            ))}
+          </select>
+          <select name="start_minute" defaultValue={start.minute} required>
+            <option value="" disabled>
+              分
+            </option>
+            {minuteOptions.map((minute) => (
+              <option value={minute} key={minute}>
+                {minute}分
+              </option>
+            ))}
+          </select>
+        </div>
       </label>
 
       <label>
         <span>終了時間</span>
-        <select name="end_time" defaultValue={defaults?.endTime ?? ""} required>
-          <option value="" disabled>
-            終了時間を選択
-          </option>
-          {timeOptions.map((time) => (
-            <option value={time} key={time}>
-              {time}
+        <div className="time-picker-row">
+          <select name="end_hour" defaultValue={end.hour} required>
+            <option value="" disabled>
+              時
             </option>
-          ))}
-        </select>
+            {hourOptions.map((hour) => (
+              <option value={hour} key={hour}>
+                {hour}時
+              </option>
+            ))}
+          </select>
+          <select name="end_minute" defaultValue={end.minute} required>
+            <option value="" disabled>
+              分
+            </option>
+            {minuteOptions.map((minute) => (
+              <option value={minute} key={minute}>
+                {minute}分
+              </option>
+            ))}
+          </select>
+        </div>
       </label>
 
       <label>
