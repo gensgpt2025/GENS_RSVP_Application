@@ -4,6 +4,14 @@ import { useMemo, useState } from "react";
 import { CalendarPlus } from "lucide-react";
 
 const categories = ["練習試合", "県リーグ", "トレーニング"];
+const timeOptions = Array.from({ length: 24 * 6 }, (_, index) => {
+  const totalMinutes = index * 10;
+  const hour = Math.floor(totalMinutes / 60)
+    .toString()
+    .padStart(2, "0");
+  const minute = (totalMinutes % 60).toString().padStart(2, "0");
+  return `${hour}:${minute}`;
+});
 
 type EventFormProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -37,12 +45,30 @@ export function EventForm({ action, buttonLabel, requireAdminPasscode = true, de
 
       <label>
         <span>開始時間</span>
-        <input name="start_time" type="time" step={600} defaultValue={defaults?.startTime ?? ""} required />
+        <select name="start_time" defaultValue={defaults?.startTime ?? ""} required>
+          <option value="" disabled>
+            開始時間を選択
+          </option>
+          {timeOptions.map((time) => (
+            <option value={time} key={time}>
+              {time}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>
         <span>終了時間</span>
-        <input name="end_time" type="time" step={600} defaultValue={defaults?.endTime ?? ""} required />
+        <select name="end_time" defaultValue={defaults?.endTime ?? ""} required>
+          <option value="" disabled>
+            終了時間を選択
+          </option>
+          {timeOptions.map((time) => (
+            <option value={time} key={time}>
+              {time}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>
