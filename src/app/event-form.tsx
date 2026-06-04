@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { CalendarPlus } from "lucide-react";
 
-const categories = ["練習試合", "県リーグ", "トレーニング"];
+const categories = ["練習試合", "県リーグ", "トレーニング", "イベント"];
 const hourOptions = Array.from({ length: 24 }, (_, hour) => hour.toString().padStart(2, "0"));
 const minuteOptions = ["00", "10", "20", "30", "40", "50"];
 

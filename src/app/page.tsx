@@ -11,6 +11,7 @@ import { EventForm } from "@/app/event-form";
 import { EventDeleteForm } from "@/app/event-delete-form";
 import { BackupPanel } from "@/app/backup-panel";
 import { LoginForm } from "@/app/login-form";
+import { MemberDeleteForm } from "@/app/member-delete-form";
 import { MemberForm } from "@/app/member-form";
 import { OrganizationAdminPanel } from "@/app/organization-admin-panel";
 import { OrganizationForm } from "@/app/organization-form";
@@ -94,7 +95,7 @@ function eventFormDefaults(event: EventWithRsvps) {
   const match = event.title.match(/^(練習試合|県リーグ)\s+vs\s+(.+)$/);
   return {
     id: event.id,
-    category: match ? match[1] : event.title === "県リーグ" || event.title === "練習試合" || event.title === "トレーニング" ? event.title : "トレーニング",
+    category: match ? match[1] : event.title === "県リーグ" || event.title === "練習試合" || event.title === "トレーニング" || event.title === "イベント" ? event.title : "トレーニング",
     opponent: match?.[2] ?? meta.opponent,
     eventDate: toDateInputValue(event.start_at),
     startTime: toTimeInputValue(event.start_at),
@@ -280,26 +281,7 @@ export default async function Home() {
             </div>
             <MemberForm />
 
-            <form action={deleteMemberAction} className="stack-form member-control-form">
-              <label>
-                <span>削除するメンバー</span>
-                <select name="member_id" required defaultValue="">
-                  <option value="" disabled>
-                    メンバーを選択
-                  </option>
-                  {members
-                    .filter((member) => member.id !== user.id)
-                    .map((member) => (
-                      <option value={member.id} key={member.id}>
-                        {member.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <button className="danger-button" type="submit">
-                メンバーを削除
-              </button>
-            </form>
+            <MemberDeleteForm action={deleteMemberAction} members={members.filter((member) => member.id !== user.id)} />
 
             <div className="member-list">
               {members.map((member) => (

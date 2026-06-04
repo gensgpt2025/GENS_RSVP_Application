@@ -88,6 +88,10 @@ function calendarEventSummary(event: { title: string; description: string | null
     return { kind: "match", label: "練習試合", opponent, badge: "練習試合" };
   }
 
+  if (event.title.startsWith("イベント")) {
+    return { kind: "event", label: "イベント", opponent: "", badge: "イベント" };
+  }
+
   return { kind: "training", label: "トレーニング", opponent: "", badge: "練習" };
 }
 
