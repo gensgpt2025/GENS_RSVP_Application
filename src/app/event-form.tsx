@@ -13,8 +13,9 @@ type EventFormProps = {
     id?: string;
     category?: string;
     opponent?: string;
-    startDatetime?: string;
-    endDatetime?: string;
+    eventDate?: string;
+    startTime?: string;
+    endTime?: string;
     location?: string;
     description?: string;
   };
@@ -30,13 +31,18 @@ export function EventForm({ action, buttonLabel, requireAdminPasscode = true, de
       {defaults?.id ? <input type="hidden" name="event_id" value={defaults.id} /> : null}
 
       <label>
-        <span>開始日時</span>
-        <input name="start_datetime" type="datetime-local" defaultValue={defaults?.startDatetime ?? ""} required />
+        <span>日付</span>
+        <input name="event_date" type="date" defaultValue={defaults?.eventDate ?? ""} required />
       </label>
 
       <label>
-        <span>終了日時</span>
-        <input name="end_datetime" type="datetime-local" defaultValue={defaults?.endDatetime ?? ""} required />
+        <span>開始時間</span>
+        <input name="start_time" type="time" step={600} defaultValue={defaults?.startTime ?? ""} required />
+      </label>
+
+      <label>
+        <span>終了時間</span>
+        <input name="end_time" type="time" step={600} defaultValue={defaults?.endTime ?? ""} required />
       </label>
 
       <label>

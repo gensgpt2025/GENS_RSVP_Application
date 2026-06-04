@@ -15,7 +15,7 @@ import { MemberForm } from "@/app/member-form";
 import { OrganizationAdminPanel } from "@/app/organization-admin-panel";
 import { OrganizationForm } from "@/app/organization-form";
 import { getCurrentUser } from "@/lib/auth";
-import { formatEventRange, googleCalendarUrl, toDatetimeLocalValue } from "@/lib/calendar";
+import { formatEventRange, googleCalendarUrl, toDateInputValue, toTimeInputValue } from "@/lib/calendar";
 import { ensureSchema, sql } from "@/lib/db";
 import { eventDisplayTitle, eventMeta, getEventsWithRsvps, getMembers, type EventWithRsvps } from "@/lib/events";
 import type { EventItem, Member, Rsvp, RsvpStatus } from "@/lib/types";
@@ -96,8 +96,9 @@ function eventFormDefaults(event: EventWithRsvps) {
     id: event.id,
     category: match ? match[1] : event.title === "県リーグ" || event.title === "練習試合" || event.title === "トレーニング" ? event.title : "トレーニング",
     opponent: match?.[2] ?? meta.opponent,
-    startDatetime: toDatetimeLocalValue(event.start_at),
-    endDatetime: toDatetimeLocalValue(event.end_at),
+    eventDate: toDateInputValue(event.start_at),
+    startTime: toTimeInputValue(event.start_at),
+    endTime: toTimeInputValue(event.end_at),
     location: event.location ?? "",
     description: meta.notes,
   };

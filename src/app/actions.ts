@@ -54,7 +54,30 @@ function dateTimeLocalToIso(startValue: string, endValue: string) {
   return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
+function eventDateAndTimesToIso(dateValue: string, startTimeValue: string, endTimeValue: string) {
+  const dateMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const startMatch = startTimeValue.match(/^(\d{2}):(\d{2})$/);
+  const endMatch = endTimeValue.match(/^(\d{2}):(\d{2})$/);
+  if (!dateMatch || !startMatch || !endMatch) return null;
+
+  const [, year, month, day] = dateMatch.map(Number);
+  const [, startHour, startMinute] = startMatch.map(Number);
+  const [, endHour, endMinute] = endMatch.map(Number);
+  if (startMinute % 10 !== 0 || endMinute % 10 !== 0) return null;
+
+  const start = new Date(Date.UTC(year, month - 1, day, startHour - 9, startMinute));
+  const end = new Date(Date.UTC(year, month - 1, day, endHour - 9, endMinute));
+  if (end <= start) return null;
+
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
 function eventDateTimeRangeToIso(formData: FormData) {
+  const eventDate = readString(formData, "event_date");
+  const startTime = readString(formData, "start_time");
+  const endTime = readString(formData, "end_time");
+  if (eventDate || startTime || endTime) return eventDateAndTimesToIso(eventDate, startTime, endTime);
+
   const startDatetime = readString(formData, "start_datetime");
   const endDatetime = readString(formData, "end_datetime");
   if (startDatetime || endDatetime) return dateTimeLocalToIso(startDatetime, endDatetime);
