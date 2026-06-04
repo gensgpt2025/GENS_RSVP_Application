@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureSchema, sql } from "@/lib/db";
-import { hashToken } from "@/lib/security";
+import { hashToken, verifyPassword } from "@/lib/security";
 import type { Member, SessionUser } from "@/lib/types";
 
 const SESSION_COOKIE = "gens_session";
@@ -25,18 +25,24 @@ async function createSession(userId: string) {
   });
 }
 
-export async function loginAsMember(memberId: string) {
+export async function loginAsMember(organizationCode: string, memberId: string) {
   await ensureSchema();
+  const code = organizationCode.trim().toUpperCase();
+
   const { rows } = await sql`
-    SELECT id FROM members
-    WHERE id = ${memberId}
-      AND active = TRUE
+    SELECT members.id
+    FROM members
+    INNER JOIN organizations ON organizations.id = members.organization_id
+    WHERE members.id = ${memberId}
+      AND organizations.code = ${code}
+      AND organizations.active = TRUE
+      AND members.active = TRUE
     LIMIT 1
   `;
 
   const member = rows[0] as Pick<Member, "id"> | undefined;
   if (!member) {
-    return { ok: false, message: "メンバーを選択してください。" };
+    return { ok: false, message: "団体コードとメンバーを確認してください。" };
   }
 
   await createSession(member.id);
@@ -59,12 +65,23 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (!token) return null;
 
   const { rows } = await sql`
-    SELECT members.id, members.name, members.email, members.role, members.active, members.created_at
+    SELECT
+      members.id,
+      members.organization_id,
+      members.name,
+      members.email,
+      members.role,
+      members.active,
+      members.created_at,
+      organizations.name AS organization_name,
+      organizations.code AS organization_code
     FROM sessions
     INNER JOIN members ON members.id = sessions.user_id
+    INNER JOIN organizations ON organizations.id = members.organization_id
     WHERE sessions.token_hash = ${hashToken(token)}
       AND sessions.expires_at > NOW()
       AND members.active = TRUE
+      AND organizations.active = TRUE
     LIMIT 1
   `;
 
@@ -74,5 +91,29 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/");
+  return user;
+}
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "admin") redirect("/");
+  return user;
+}
+
+export async function verifyAdminPasscode(passcode: string) {
+  const user = await requireAdmin();
+  const { rows } = await sql`
+    SELECT admin_passcode_hash
+    FROM organizations
+    WHERE id = ${user.organization_id}
+      AND active = TRUE
+    LIMIT 1
+  `;
+
+  const organization = rows[0] as { admin_passcode_hash: string } | undefined;
+  if (!organization || !verifyPassword(passcode, organization.admin_passcode_hash)) {
+    return null;
+  }
+
   return user;
 }

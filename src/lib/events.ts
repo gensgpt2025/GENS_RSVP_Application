@@ -5,15 +5,15 @@ export type EventWithRsvps = EventItem & {
   rsvps: Rsvp[];
 };
 
-export async function getEventsWithRsvps(where: "upcoming" | "past" | "all" = "all") {
+export async function getEventsWithRsvps(organizationId: string, where: "upcoming" | "past" | "all" = "all") {
   await ensureSchema();
 
   const eventQuery =
     where === "upcoming"
-      ? sql`SELECT * FROM events WHERE end_at >= NOW() ORDER BY start_at ASC`
+      ? sql`SELECT * FROM events WHERE organization_id = ${organizationId} AND end_at >= NOW() ORDER BY start_at ASC`
       : where === "past"
-        ? sql`SELECT * FROM events WHERE end_at < NOW() ORDER BY start_at DESC`
-        : sql`SELECT * FROM events ORDER BY start_at ASC`;
+        ? sql`SELECT * FROM events WHERE organization_id = ${organizationId} AND end_at < NOW() ORDER BY start_at DESC`
+        : sql`SELECT * FROM events WHERE organization_id = ${organizationId} ORDER BY start_at ASC`;
 
   const [events, rsvps] = await Promise.all([
     eventQuery,
@@ -21,6 +21,8 @@ export async function getEventsWithRsvps(where: "upcoming" | "past" | "all" = "a
       SELECT rsvps.*, members.name AS member_name
       FROM rsvps
       INNER JOIN members ON members.id = rsvps.user_id
+      INNER JOIN events ON events.id = rsvps.event_id
+      WHERE events.organization_id = ${organizationId}
       ORDER BY rsvps.updated_at DESC
     `,
   ]);
@@ -33,12 +35,13 @@ export async function getEventsWithRsvps(where: "upcoming" | "past" | "all" = "a
   return (events.rows as EventItem[]).map((event) => ({ ...event, rsvps: grouped.get(event.id) ?? [] }));
 }
 
-export async function getMembers() {
+export async function getMembers(organizationId: string) {
   await ensureSchema();
   const { rows } = await sql`
-    SELECT id, name, email, role, active, created_at
+    SELECT id, organization_id, name, email, role, active, created_at
     FROM members
-    WHERE active = TRUE
+    WHERE organization_id = ${organizationId}
+      AND active = TRUE
     ORDER BY
       CASE WHEN name ~ '^[0-9]+' THEN 0 ELSE 1 END,
       CASE WHEN name ~ '^[0-9]+' THEN substring(name from '^[0-9]+')::int ELSE NULL END ASC,

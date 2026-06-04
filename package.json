@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
+    "dist": "npm run build && node scripts/create-distribution.mjs",
     "lint": "tsc --noEmit",
     "cleanup:target-data": "node scripts/delete-target-data.mjs"
   },

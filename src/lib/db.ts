@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { hashPassword } from "@/lib/security";
 
 let schemaReady: Promise<void> | null = null;
 let dbClient: ReturnType<typeof neon<false, true>> | null = null;
@@ -24,16 +25,35 @@ export async function ensureSchema() {
 
 async function createSchema() {
   await sql`
-    CREATE TABLE IF NOT EXISTS members (
+    CREATE TABLE IF NOT EXISTS organizations (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      admin_passcode_hash TEXT NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  const defaultOrgId = await ensureDefaultOrganization();
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS members (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'member',
       active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE`;
+  await sql`UPDATE members SET organization_id = ${defaultOrgId} WHERE organization_id IS NULL`;
+  await sql`ALTER TABLE members ALTER COLUMN organization_id SET NOT NULL`;
+  await sql`ALTER TABLE members DROP CONSTRAINT IF EXISTS members_email_key`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_members_organization_email ON members(organization_id, email)`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -47,7 +67,8 @@ async function createSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
-      sheet_id TEXT UNIQUE,
+      organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
+      sheet_id TEXT,
       title TEXT NOT NULL,
       description TEXT,
       location TEXT,
@@ -58,8 +79,13 @@ async function createSchema() {
     )
   `;
 
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE`;
+  await sql`UPDATE events SET organization_id = ${defaultOrgId} WHERE organization_id IS NULL`;
+  await sql`ALTER TABLE events ALTER COLUMN organization_id SET NOT NULL`;
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS sheet_id TEXT`;
-  await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_events_sheet_id ON events(sheet_id) WHERE sheet_id IS NOT NULL`;
+  await sql`ALTER TABLE events DROP CONSTRAINT IF EXISTS events_sheet_id_key`;
+  await sql`DROP INDEX IF EXISTS idx_events_sheet_id`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_events_organization_sheet_id ON events(organization_id, sheet_id) WHERE sheet_id IS NOT NULL`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS rsvps (
@@ -73,6 +99,39 @@ async function createSchema() {
   `;
 
   await sql`CREATE INDEX IF NOT EXISTS idx_events_start_at ON events(start_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_events_organization_start_at ON events(organization_id, start_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_members_organization_id ON members(organization_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`;
 
+  await seedAdmin(defaultOrgId);
+}
+
+async function ensureDefaultOrganization() {
+  const code = (process.env.ORGANIZATION_CODE ?? "GENS").trim().toUpperCase();
+  const name = process.env.ORGANIZATION_NAME?.trim() || "GENS";
+  const passcode = process.env.ADMIN_PASSCODE || process.env.ADMIN_PASSWORD || "change-this-passcode";
+
+  const existing = await sql`SELECT id FROM organizations WHERE code = ${code} LIMIT 1`;
+  if (existing.rows[0]) return String(existing.rows[0].id);
+
+  const id = crypto.randomUUID();
+  await sql`
+    INSERT INTO organizations (id, name, code, admin_passcode_hash)
+    VALUES (${id}, ${name}, ${code}, ${hashPassword(passcode)})
+  `;
+  return id;
+}
+
+async function seedAdmin(organizationId: string) {
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  const name = process.env.ADMIN_NAME?.trim() || "Admin";
+
+  if (!email || !password) return;
+
+  await sql`
+    INSERT INTO members (id, organization_id, name, email, password_hash, role)
+    VALUES (${crypto.randomUUID()}, ${organizationId}, ${name}, ${email}, ${hashPassword(password)}, 'admin')
+    ON CONFLICT (organization_id, email) DO NOTHING
+  `;
 }

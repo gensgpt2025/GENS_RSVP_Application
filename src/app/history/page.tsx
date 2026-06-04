@@ -22,7 +22,7 @@ export default async function HistoryPage() {
     );
   }
 
-  const events = await getEventsWithRsvps("past");
+  const events = await getEventsWithRsvps(user.organization_id, "past");
 
   return (
     <main className="app-shell">

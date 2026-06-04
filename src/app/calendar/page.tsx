@@ -126,7 +126,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const next = new Date(month);
   next.setMonth(month.getMonth() + 1);
 
-  const events = await getEventsWithRsvps("all");
+  const events = await getEventsWithRsvps(user.organization_id, "all");
   const eventsByDate = new Map<string, typeof events>();
   for (const event of events) {
     const key = eventDateKey(event.start_at);

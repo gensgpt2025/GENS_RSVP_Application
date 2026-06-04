@@ -5,14 +5,15 @@ import {
   deleteMemberAction,
   logoutAction,
   rsvpAction,
-  syncSheetEventsAction,
   updateEventAction,
 } from "@/app/actions";
 import { EventForm } from "@/app/event-form";
 import { EventDeleteForm } from "@/app/event-delete-form";
+import { BackupPanel } from "@/app/backup-panel";
 import { CountdownBlock, LoginForm } from "@/app/login-form";
 import { MemberForm } from "@/app/member-form";
-import { SheetSyncForm } from "@/app/sheet-sync-form";
+import { OrganizationAdminPanel } from "@/app/organization-admin-panel";
+import { OrganizationForm } from "@/app/organization-form";
 import { getCurrentUser } from "@/lib/auth";
 import { formatEventRange, googleCalendarUrl, toDateTimeRangeInput } from "@/lib/calendar";
 import { ensureSchema, sql } from "@/lib/db";
@@ -26,18 +27,6 @@ const statusLabels: Record<RsvpStatus, string> = {
   declined: "不参加",
   maybe: "未定",
 };
-
-async function getActiveMembers() {
-  await ensureSchema();
-  const { rows } = await sql`
-    SELECT id, name, email, role, active, created_at
-    FROM members
-    WHERE active = TRUE
-    ORDER BY created_at ASC
-  `;
-
-  return rows as Member[];
-}
 
 async function getNextLeagueEvent() {
   await ensureSchema();
@@ -117,19 +106,7 @@ export default async function Home() {
   const user = await getCurrentUser();
 
   if (!user) {
-    const [members, nextLeagueEvent] = await Promise.all([getActiveMembers(), getNextLeagueEvent()]);
-    const nextLeagueMeta = nextLeagueEvent ? eventMeta(nextLeagueEvent) : null;
-    const leagueDays = nextLeagueEvent ? daysUntil(nextLeagueEvent.start_at) : null;
-    const leagueOpponent = nextLeagueEvent ? opponentFromEvent(nextLeagueEvent, nextLeagueMeta?.opponent ?? "") : "";
-    const leagueCountdown = nextLeagueEvent
-      ? {
-          daysLabel: leagueDays?.label ?? "",
-          isSoon: (leagueDays?.days ?? 999) <= 60,
-          dateLabel: formatEventRange(nextLeagueEvent.start_at, nextLeagueEvent.end_at),
-          location: nextLeagueEvent.location ?? "",
-          opponent: leagueOpponent,
-        }
-      : null;
+    const leagueCountdown = null;
 
     return (
       <main className="auth-screen">
@@ -139,12 +116,16 @@ export default async function Home() {
           </div>
           <CountdownBlock leagueCountdown={leagueCountdown} />
         </section>
-        <LoginForm members={members} leagueCountdown={leagueCountdown} />
+        <div className="auth-stack">
+          <LoginForm leagueCountdown={leagueCountdown} />
+          <OrganizationForm />
+        </div>
       </main>
     );
   }
 
-  const [events, members] = await Promise.all([getEventsWithRsvps("upcoming"), getMembers()]);
+  const [events, members] = await Promise.all([getEventsWithRsvps(user.organization_id, "upcoming"), getMembers(user.organization_id)]);
+  const isAdmin = user.role === "admin";
 
   return (
     <main className="app-shell">
@@ -161,7 +142,9 @@ export default async function Home() {
             過去ログ
           </a>
           <Shield size={16} />
-          <span>{user.name}</span>
+          <span>
+            {user.organization_name} / {user.name}
+          </span>
           <form action={logoutAction}>
             <button className="ghost-button" type="submit">
               退出
@@ -183,7 +166,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="content-grid">
+      <div className={isAdmin ? "content-grid" : "content-grid member-content-grid"}>
         <section className="events-panel">
           <div className="section-heading">
             <div>
@@ -268,19 +251,24 @@ export default async function Home() {
                     ))}
                   </form>
 
-                  <details className="edit-event-panel">
+                  {isAdmin ? (
+                    <>
+                      <details className="edit-event-panel">
                     <summary>予定を修正</summary>
                     <EventForm action={updateEventAction} buttonLabel="修正を保存" defaults={eventFormDefaults(event)} />
                   </details>
 
-                  <EventDeleteForm action={deleteEventAction} eventId={event.id} eventTitle={displayTitle} />
+                      <EventDeleteForm action={deleteEventAction} eventId={event.id} eventTitle={displayTitle} />
+                    </>
+                  ) : null}
                 </article>
               );
             })}
           </div>
         </section>
 
-        <aside className="admin-panel">
+        {isAdmin ? (
+          <aside className="admin-panel">
           <section className="tool-panel">
             <div className="section-heading">
               <div>
@@ -288,7 +276,6 @@ export default async function Home() {
                 <h2>イベント追加</h2>
               </div>
             </div>
-            <SheetSyncForm action={syncSheetEventsAction} />
             <EventForm action={createEventAction} buttonLabel="追加" />
           </section>
 
@@ -317,6 +304,10 @@ export default async function Home() {
                     ))}
                 </select>
               </label>
+              <label>
+                <span>管理者パスコード</span>
+                <input name="admin_passcode" type="password" autoComplete="current-password" required />
+              </label>
               <button className="danger-button" type="submit">
                 メンバーを削除
               </button>
@@ -330,7 +321,10 @@ export default async function Home() {
               ))}
             </div>
           </section>
+          <BackupPanel />
+          <OrganizationAdminPanel organizationCode={user.organization_code} />
         </aside>
+        ) : null}
       </div>
     </main>
   );

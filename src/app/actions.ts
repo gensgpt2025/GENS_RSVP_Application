@@ -2,16 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { loginAsMember, logout, requireUser } from "@/lib/auth";
+import { loginAsMember, logout, requireUser, verifyAdminPasscode } from "@/lib/auth";
 import { ensureSchema, sql } from "@/lib/db";
 import { hashPassword } from "@/lib/security";
-import { fetchSheetEvents } from "@/lib/sheets";
 import type { RsvpStatus } from "@/lib/types";
 
 export type MemberFormState = {
   message: string;
   needsConfirmation: boolean;
   pendingName: string;
+};
+
+export type OrganizationFormState = {
+  message: string;
 };
 
 function readString(formData: FormData, name: string) {
@@ -23,10 +26,10 @@ function japanDateTimeRangeToIso(value: string) {
     .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
     .replace(/[／]/g, "/")
     .replace(/[：]/g, ":")
-    .replace(/[ー－−]/g, "-")
+    .replace(/[ー－―]/g, "-")
     .replace(/\s+/g, " ")
     .trim();
-  const match = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})-(\d{1,2})[:-](\d{2})$/);
+  const match = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
   if (!match) return null;
 
   const [, year, month, day, startHour, startMinute, endHour, endMinute] = match.map(Number);
@@ -56,7 +59,7 @@ function memberLoginEmail(name: string) {
 }
 
 export async function loginAction(_: unknown, formData: FormData) {
-  const result = await loginAsMember(readString(formData, "member_id"));
+  const result = await loginAsMember(readString(formData, "organization_code"), readString(formData, "member_id"));
   if (result.ok) redirect("/");
   return result;
 }
@@ -66,9 +69,43 @@ export async function logoutAction() {
   redirect("/");
 }
 
-export async function createMemberAction(_: MemberFormState, formData: FormData): Promise<MemberFormState> {
-  await requireUser();
+export async function createOrganizationAction(_: OrganizationFormState, formData: FormData): Promise<OrganizationFormState> {
   await ensureSchema();
+
+  const name = readString(formData, "organization_name");
+  const code = readString(formData, "organization_code").toUpperCase();
+  const adminName = readString(formData, "admin_name") || "管理者";
+  const adminPasscode = readString(formData, "admin_passcode");
+
+  if (!name || !code || !adminPasscode) {
+    return { message: "団体名、団体コード、管理者パスコードを入力してください。" };
+  }
+
+  if (!/^[A-Z0-9_-]{3,24}$/.test(code)) {
+    return { message: "団体コードは3〜24文字の英数字、ハイフン、アンダーバーで設定してください。" };
+  }
+
+  const organizationId = crypto.randomUUID();
+  try {
+    await sql`
+      INSERT INTO organizations (id, name, code, admin_passcode_hash)
+      VALUES (${organizationId}, ${name}, ${code}, ${hashPassword(adminPasscode)})
+    `;
+
+    await sql`
+      INSERT INTO members (id, organization_id, name, email, password_hash, role)
+      VALUES (${crypto.randomUUID()}, ${organizationId}, ${adminName}, ${memberLoginEmail(adminName)}, ${hashPassword(crypto.randomUUID())}, 'admin')
+    `;
+  } catch {
+    return { message: "この団体コードはすでに使われています。" };
+  }
+
+  return { message: `団体「${name}」を作成しました。団体コード「${code}」でログインできます。` };
+}
+
+export async function createMemberAction(_: MemberFormState, formData: FormData): Promise<MemberFormState> {
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return { message: "管理者パスコードが違います。", needsConfirmation: false, pendingName: "" };
 
   const name = readString(formData, "name");
   const confirmed = readString(formData, "confirm_duplicate") === "yes";
@@ -76,7 +113,8 @@ export async function createMemberAction(_: MemberFormState, formData: FormData)
 
   const existing = await sql`
     SELECT id FROM members
-    WHERE lower(regexp_replace(name, '\\s+', ' ', 'g')) = lower(regexp_replace(${name}, '\\s+', ' ', 'g'))
+    WHERE organization_id = ${user.organization_id}
+      AND lower(regexp_replace(name, '\\s+', ' ', 'g')) = lower(regexp_replace(${name}, '\\s+', ' ', 'g'))
     LIMIT 1
   `;
 
@@ -89,8 +127,8 @@ export async function createMemberAction(_: MemberFormState, formData: FormData)
   }
 
   await sql`
-    INSERT INTO members (id, name, email, password_hash, role)
-    VALUES (${crypto.randomUUID()}, ${name}, ${memberLoginEmail(name)}, ${hashPassword(crypto.randomUUID())}, 'member')
+    INSERT INTO members (id, organization_id, name, email, password_hash, role)
+    VALUES (${crypto.randomUUID()}, ${user.organization_id}, ${name}, ${memberLoginEmail(name)}, ${hashPassword(crypto.randomUUID())}, 'member')
   `;
 
   revalidatePath("/");
@@ -98,8 +136,8 @@ export async function createMemberAction(_: MemberFormState, formData: FormData)
 }
 
 export async function createEventAction(formData: FormData) {
-  const user = await requireUser();
-  await ensureSchema();
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return;
 
   const category = readString(formData, "category");
   const opponent = readString(formData, "opponent");
@@ -114,24 +152,16 @@ export async function createEventAction(formData: FormData) {
   if (!range) return;
 
   await sql`
-    INSERT INTO events (id, title, description, location, start_at, end_at, created_by)
-    VALUES (
-      ${crypto.randomUUID()},
-      ${title},
-      ${description || null},
-      ${location || null},
-      ${range.startIso},
-      ${range.endIso},
-      ${user.id}
-    )
+    INSERT INTO events (id, organization_id, title, description, location, start_at, end_at, created_by)
+    VALUES (${crypto.randomUUID()}, ${user.organization_id}, ${title}, ${description || null}, ${location || null}, ${range.startIso}, ${range.endIso}, ${user.id})
   `;
 
   revalidatePath("/");
 }
 
 export async function updateEventAction(formData: FormData) {
-  await requireUser();
-  await ensureSchema();
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return;
 
   const eventId = readString(formData, "event_id");
   const category = readString(formData, "category");
@@ -154,6 +184,7 @@ export async function updateEventAction(formData: FormData) {
         start_at = ${range.startIso},
         end_at = ${range.endIso}
     WHERE id = ${eventId}
+      AND organization_id = ${user.organization_id}
   `;
 
   revalidatePath("/");
@@ -161,7 +192,6 @@ export async function updateEventAction(formData: FormData) {
 
 export async function rsvpAction(formData: FormData) {
   const user = await requireUser();
-  await ensureSchema();
 
   const eventId = readString(formData, "event_id");
   const status = readString(formData, "status") as RsvpStatus;
@@ -169,7 +199,12 @@ export async function rsvpAction(formData: FormData) {
 
   await sql`
     INSERT INTO rsvps (event_id, user_id, status, note, updated_at)
-    VALUES (${eventId}, ${user.id}, ${status}, null, NOW())
+    SELECT ${eventId}, ${user.id}, ${status}, null, NOW()
+    WHERE EXISTS (
+      SELECT 1 FROM events
+      WHERE id = ${eventId}
+        AND organization_id = ${user.organization_id}
+    )
     ON CONFLICT (event_id, user_id) DO UPDATE
     SET status = EXCLUDED.status,
         note = null,
@@ -180,53 +215,44 @@ export async function rsvpAction(formData: FormData) {
 }
 
 export async function deleteMemberAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return;
+
   const memberId = readString(formData, "member_id");
   if (!memberId || memberId === user.id) return;
 
-  await ensureSchema();
-  await sql`DELETE FROM members WHERE id = ${memberId}`;
+  await sql`DELETE FROM members WHERE id = ${memberId} AND organization_id = ${user.organization_id}`;
   revalidatePath("/");
 }
 
 export async function deleteEventAction(formData: FormData) {
-  await requireUser();
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return;
+
   const eventId = readString(formData, "event_id");
   if (!eventId) return;
 
-  await ensureSchema();
-  await sql`DELETE FROM events WHERE id = ${eventId}`;
+  await sql`DELETE FROM events WHERE id = ${eventId} AND organization_id = ${user.organization_id}`;
   revalidatePath("/");
 }
 
-export async function syncSheetEventsAction() {
-  const user = await requireUser();
-  await ensureSchema();
+export async function suspendOrganizationAction(formData: FormData) {
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return;
 
-  const events = await fetchSheetEvents();
-  for (const event of events) {
-    await sql`
-      INSERT INTO events (id, sheet_id, title, description, location, start_at, end_at, created_by)
-      VALUES (
-        ${crypto.randomUUID()},
-        ${event.sheetId},
-        ${event.title},
-        ${event.description},
-        ${event.location},
-        ${event.startIso},
-        ${event.endIso},
-        ${user.id}
-      )
-      ON CONFLICT (sheet_id) WHERE sheet_id IS NOT NULL DO UPDATE
-      SET title = EXCLUDED.title,
-          description = EXCLUDED.description,
-          location = EXCLUDED.location,
-          start_at = EXCLUDED.start_at,
-          end_at = EXCLUDED.end_at
-    `;
-  }
+  await sql`UPDATE organizations SET active = FALSE WHERE id = ${user.organization_id}`;
+  await logout();
+  redirect("/");
+}
 
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  revalidatePath("/history");
+export async function deleteOrganizationAction(formData: FormData) {
+  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
+  if (!user) return;
+
+  const confirmationCode = readString(formData, "confirmation_code").toUpperCase();
+  if (confirmationCode !== user.organization_code) return;
+
+  await sql`DELETE FROM organizations WHERE id = ${user.organization_id}`;
+  await logout();
+  redirect("/");
 }

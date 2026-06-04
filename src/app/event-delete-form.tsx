@@ -12,15 +12,19 @@ export function EventDeleteForm({ action, eventId, eventTitle }: EventDeleteForm
       action={action}
       className="admin-inline-form"
       onSubmit={(event) => {
-        const confirmed = window.confirm(`「${eventTitle}」を削除しますか？\nこの操作は取り消せません。\n出欠回答も一緒に削除されます。`);
+        const confirmed = window.confirm(`「${eventTitle}」を削除しますか？\nこの操作は取り消せません。`);
         if (!confirmed) {
           event.preventDefault();
         }
       }}
     >
       <input type="hidden" name="event_id" value={eventId} />
+      <label>
+        <span>管理者パスコード</span>
+        <input name="admin_passcode" type="password" autoComplete="current-password" required />
+      </label>
       <button className="danger-button" type="submit">
-        イベント削除
+        予定を削除
       </button>
     </form>
   );

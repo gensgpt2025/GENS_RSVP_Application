@@ -154,6 +154,56 @@ a {
   border-left: 1px solid var(--line);
 }
 
+.auth-stack {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: 40px;
+  background: rgba(10, 12, 16, 0.92);
+  border-left: 1px solid var(--line);
+}
+
+.auth-stack .login-panel {
+  border-left: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.organization-create-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 14px;
+}
+
+.organization-create-panel summary {
+  color: var(--gold);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.organization-create-panel form {
+  margin-top: 14px;
+}
+
+.input-with-icon {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.055);
+  padding: 0 12px;
+}
+
+.input-with-icon input {
+  border: 0;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--gold);
@@ -362,6 +412,10 @@ button:hover,
   grid-template-columns: minmax(0, 1fr) 390px;
   gap: 18px;
   align-items: start;
+}
+
+.member-content-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .events-panel {

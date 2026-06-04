@@ -60,6 +60,11 @@ export function EventForm({ action, buttonLabel, defaults }: EventFormProps) {
         <textarea name="description" rows={4} defaultValue={defaults?.description ?? ""} />
       </label>
 
+      <label>
+        <span>管理者パスコード</span>
+        <input name="admin_passcode" type="password" autoComplete="current-password" required />
+      </label>
+
       <button className="primary-button" type="submit">
         <CalendarPlus size={18} />
         {buttonLabel}

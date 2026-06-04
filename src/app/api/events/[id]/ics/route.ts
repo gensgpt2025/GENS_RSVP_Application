@@ -8,10 +8,10 @@ import type { EventItem } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  const user = await requireUser();
   await ensureSchema();
   const { id } = await params;
-  const { rows } = await sql`SELECT * FROM events WHERE id = ${id} LIMIT 1`;
+  const { rows } = await sql`SELECT * FROM events WHERE id = ${id} AND organization_id = ${user.organization_id} LIMIT 1`;
   const event = rows[0] as EventItem | undefined;
   if (!event) notFound();
 
