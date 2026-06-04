@@ -18,6 +18,18 @@ export type OrganizationFormState = {
   message: string;
 };
 
+export type SiteAdminOverviewState = {
+  message: string;
+  organizations: {
+    id: string;
+    name: string;
+    code: string;
+    active: boolean;
+    members: { id: string; name: string; active: boolean }[];
+    events: { id: string; title: string; location: string | null; start_at: string; end_at: string }[];
+  }[];
+};
+
 function readString(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
 }
@@ -161,6 +173,67 @@ export async function createOrganizationAction(_: OrganizationFormState, formDat
   }
 
   return { message: `団体「${name}」を作成しました。団体コード「${code}」でログインできます。` };
+}
+
+export async function getSiteAdminOverviewAction(_: SiteAdminOverviewState, formData: FormData): Promise<SiteAdminOverviewState> {
+  await ensureSchema();
+  if (!siteAdminIsValid(formData)) {
+    return { message: "サイト管理者の認証に失敗しました。", organizations: [] };
+  }
+
+  const [organizations, members, events] = await Promise.all([
+    sql`
+      SELECT id, name, code, active
+      FROM organizations
+      ORDER BY created_at ASC
+    `,
+    sql`
+      SELECT id, organization_id, name, active
+      FROM members
+      ORDER BY
+        CASE WHEN name ~ '^[0-9]+' THEN 0 ELSE 1 END,
+        CASE WHEN name ~ '^[0-9]+' THEN substring(name from '^[0-9]+')::int ELSE NULL END ASC,
+        name ASC,
+        created_at ASC
+    `,
+    sql`
+      SELECT id, organization_id, title, location, start_at, end_at
+      FROM events
+      ORDER BY start_at DESC
+    `,
+  ]);
+
+  const memberRows = members.rows as { id: string; organization_id: string; name: string; active: boolean }[];
+  const eventRows = events.rows as {
+    id: string;
+    organization_id: string;
+    title: string;
+    location: string | null;
+    start_at: string;
+    end_at: string;
+  }[];
+
+  return {
+    message: "一覧を取得しました。",
+    organizations: (organizations.rows as { id: string; name: string; code: string; active: boolean }[]).map((organization) => ({
+      id: organization.id,
+      name: organization.name,
+      code: organization.code,
+      active: organization.active,
+      members: memberRows
+        .filter((member) => member.organization_id === organization.id)
+        .map((member) => ({ id: member.id, name: member.name, active: member.active })),
+      events: eventRows
+        .filter((event) => event.organization_id === organization.id)
+        .map((event) => ({
+          id: event.id,
+          title: event.title,
+          location: event.location,
+          start_at: new Date(event.start_at).toISOString(),
+          end_at: new Date(event.end_at).toISOString(),
+        })),
+    })),
+  };
 }
 
 export async function createMemberAction(_: MemberFormState, formData: FormData): Promise<MemberFormState> {

@@ -5,6 +5,7 @@ import {
   deleteOrganizationFromTopAction,
   suspendOrganizationFromTopAction,
 } from "@/app/actions";
+import { OrganizationForm } from "@/app/organization-form";
 
 function SiteAdminFields() {
   return (
@@ -26,7 +27,9 @@ export function OrganizationAdminPanel() {
     <details className="organization-create-panel">
       <summary>団体管理</summary>
 
-      <form action={changeOrganizationPasscodeFromTopAction} className="stack-form">
+      <OrganizationForm embedded />
+
+      <form action={changeOrganizationPasscodeFromTopAction} className="stack-form member-control-form">
         <label>
           <span>団体コード</span>
           <input name="organization_code" required />

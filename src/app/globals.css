@@ -162,6 +162,91 @@ a {
   margin-top: 14px;
 }
 
+.site-admin-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.embedded-overview {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+}
+
+.embedded-overview h3 {
+  color: var(--gold);
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.site-admin-organization {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.site-admin-organization-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.site-admin-organization-header div,
+.site-admin-section {
+  display: grid;
+  gap: 6px;
+}
+
+.site-admin-organization-header strong {
+  font-size: 16px;
+}
+
+.site-admin-organization-header span,
+.site-admin-organization-header em,
+.site-admin-event-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.site-admin-section h3 {
+  color: var(--gold);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.site-admin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.site-admin-tags span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.site-admin-tags .inactive {
+  opacity: 0.55;
+}
+
+.site-admin-events {
+  display: grid;
+  gap: 8px;
+}
+
+.site-admin-event-row {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px;
+}
+
 .input-with-icon {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

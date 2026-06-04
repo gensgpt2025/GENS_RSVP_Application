@@ -14,7 +14,6 @@ import { LoginForm } from "@/app/login-form";
 import { MemberDeleteForm } from "@/app/member-delete-form";
 import { MemberForm } from "@/app/member-form";
 import { OrganizationAdminPanel } from "@/app/organization-admin-panel";
-import { OrganizationForm } from "@/app/organization-form";
 import { getCurrentUser } from "@/lib/auth";
 import { formatEventRange, googleCalendarUrl, toDateInputValue, toTimeInputValue } from "@/lib/calendar";
 import { ensureSchema, sql } from "@/lib/db";
@@ -113,7 +112,6 @@ export default async function Home() {
       <main className="auth-screen">
         <div className="auth-stack">
           <LoginForm />
-          <OrganizationForm />
           <OrganizationAdminPanel />
           <BackupPanel />
         </div>

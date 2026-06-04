@@ -8,12 +8,14 @@ const initialState: OrganizationFormState = {
   message: "",
 };
 
-export function OrganizationForm() {
+type OrganizationFormProps = {
+  embedded?: boolean;
+};
+
+export function OrganizationForm({ embedded = false }: OrganizationFormProps) {
   const [state, action, pending] = useActionState(createOrganizationAction, initialState);
 
-  return (
-    <details className="organization-create-panel">
-      <summary>団体を作成</summary>
+  const content = (
       <form action={action} className="stack-form">
         <label>
           <span>団体名</span>
@@ -41,6 +43,21 @@ export function OrganizationForm() {
           作成
         </button>
       </form>
+  );
+
+  if (embedded) {
+    return (
+      <section className="embedded-overview">
+        <h3>団体を作成</h3>
+        {content}
+      </section>
+    );
+  }
+
+  return (
+    <details className="organization-create-panel">
+      <summary>団体を作成</summary>
+      {content}
     </details>
   );
 }

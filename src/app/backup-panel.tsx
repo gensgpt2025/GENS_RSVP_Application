@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, Upload } from "lucide-react";
+import { SiteAdminOverviewPanel } from "@/app/site-admin-overview-panel";
 
 export function BackupPanel() {
   const [message, setMessage] = useState("");
@@ -60,6 +61,8 @@ export function BackupPanel() {
   return (
     <details className="organization-create-panel">
       <summary>バックアップ / 復旧</summary>
+
+      <SiteAdminOverviewPanel embedded />
 
       <form action={downloadBackup} className="stack-form">
         <label>
