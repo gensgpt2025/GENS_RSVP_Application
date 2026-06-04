@@ -10,7 +10,7 @@ import {
 import { EventForm } from "@/app/event-form";
 import { EventDeleteForm } from "@/app/event-delete-form";
 import { BackupPanel } from "@/app/backup-panel";
-import { CountdownBlock, LoginForm } from "@/app/login-form";
+import { LoginForm } from "@/app/login-form";
 import { MemberForm } from "@/app/member-form";
 import { OrganizationAdminPanel } from "@/app/organization-admin-panel";
 import { OrganizationForm } from "@/app/organization-form";
@@ -106,18 +106,10 @@ export default async function Home() {
   const user = await getCurrentUser();
 
   if (!user) {
-    const leagueCountdown = null;
-
     return (
       <main className="auth-screen">
-        <section className="auth-visual">
-          <div className="orbital-panel">
-            <img src="/gens-emblem.png" alt="GENS ICHIHARA" />
-          </div>
-          <CountdownBlock leagueCountdown={leagueCountdown} />
-        </section>
         <div className="auth-stack">
-          <LoginForm leagueCountdown={leagueCountdown} />
+          <LoginForm />
           <OrganizationForm />
         </div>
       </main>
@@ -132,7 +124,8 @@ export default async function Home() {
       <header className="topbar">
         <div>
           <p className="eyebrow">Schedule / RSVP</p>
-          <h1>GENS Schedule Board</h1>
+          <h1>{user.organization_name}</h1>
+          <p className="page-subtitle">GENS Schedule Board</p>
         </div>
         <div className="user-chip">
           <a className="ghost-button" href="/calendar">
