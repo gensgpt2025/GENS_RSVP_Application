@@ -1,19 +1,14 @@
 "use client";
 
-import { deleteOrganizationAction, suspendOrganizationAction } from "@/app/actions";
+import { deleteOrganizationFromTopAction, suspendOrganizationFromTopAction } from "@/app/actions";
 
-export function OrganizationAdminPanel({ organizationCode }: { organizationCode: string }) {
+export function OrganizationAdminPanel() {
   return (
-    <section className="tool-panel">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Organization</p>
-          <h2>団体管理</h2>
-        </div>
-      </div>
+    <details className="organization-create-panel">
+      <summary>団体管理</summary>
 
       <form
-        action={suspendOrganizationAction}
+        action={suspendOrganizationFromTopAction}
         className="stack-form"
         onSubmit={(event) => {
           if (!window.confirm("この団体を休止しますか？休止後はログインできなくなります。")) {
@@ -21,6 +16,10 @@ export function OrganizationAdminPanel({ organizationCode }: { organizationCode:
           }
         }}
       >
+        <label>
+          <span>団体コード</span>
+          <input name="organization_code" required />
+        </label>
         <label>
           <span>管理者パスコード</span>
           <input name="admin_passcode" type="password" autoComplete="current-password" required />
@@ -31,7 +30,7 @@ export function OrganizationAdminPanel({ organizationCode }: { organizationCode:
       </form>
 
       <form
-        action={deleteOrganizationAction}
+        action={deleteOrganizationFromTopAction}
         className="stack-form member-control-form"
         onSubmit={(event) => {
           if (!window.confirm("団体と関連データをすべて削除します。取り消せません。")) {
@@ -40,8 +39,12 @@ export function OrganizationAdminPanel({ organizationCode }: { organizationCode:
         }}
       >
         <label>
+          <span>団体コード</span>
+          <input name="organization_code" required />
+        </label>
+        <label>
           <span>団体コード確認</span>
-          <input name="confirmation_code" placeholder={organizationCode} required />
+          <input name="confirmation_code" required />
         </label>
         <label>
           <span>管理者パスコード</span>
@@ -51,6 +54,6 @@ export function OrganizationAdminPanel({ organizationCode }: { organizationCode:
           団体を削除
         </button>
       </form>
-    </section>
+    </details>
   );
 }

@@ -19,10 +19,6 @@ export function EventDeleteForm({ action, eventId, eventTitle }: EventDeleteForm
       }}
     >
       <input type="hidden" name="event_id" value={eventId} />
-      <label>
-        <span>管理者パスコード</span>
-        <input name="admin_passcode" type="password" autoComplete="current-password" required />
-      </label>
       <button className="danger-button" type="submit">
         予定を削除
       </button>

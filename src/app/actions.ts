@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { loginAsMember, logout, requireUser, verifyAdminPasscode } from "@/lib/auth";
 import { ensureSchema, sql } from "@/lib/db";
-import { hashPassword } from "@/lib/security";
+import { hashPassword, verifyPassword } from "@/lib/security";
 import type { RsvpStatus } from "@/lib/types";
 
 export type MemberFormState = {
@@ -104,8 +104,7 @@ export async function createOrganizationAction(_: OrganizationFormState, formDat
 }
 
 export async function createMemberAction(_: MemberFormState, formData: FormData): Promise<MemberFormState> {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return { message: "管理者パスコードが違います。", needsConfirmation: false, pendingName: "" };
+  const user = await requireUser();
 
   const name = readString(formData, "name");
   const confirmed = readString(formData, "confirm_duplicate") === "yes";
@@ -136,8 +135,7 @@ export async function createMemberAction(_: MemberFormState, formData: FormData)
 }
 
 export async function createEventAction(formData: FormData) {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return;
+  const user = await requireUser();
 
   const category = readString(formData, "category");
   const opponent = readString(formData, "opponent");
@@ -160,8 +158,7 @@ export async function createEventAction(formData: FormData) {
 }
 
 export async function updateEventAction(formData: FormData) {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return;
+  const user = await requireUser();
 
   const eventId = readString(formData, "event_id");
   const category = readString(formData, "category");
@@ -215,8 +212,7 @@ export async function rsvpAction(formData: FormData) {
 }
 
 export async function deleteMemberAction(formData: FormData) {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return;
+  const user = await requireUser();
 
   const memberId = readString(formData, "member_id");
   if (!memberId || memberId === user.id) return;
@@ -226,8 +222,7 @@ export async function deleteMemberAction(formData: FormData) {
 }
 
 export async function deleteEventAction(formData: FormData) {
-  const user = await verifyAdminPasscode(readString(formData, "admin_passcode"));
-  if (!user) return;
+  const user = await requireUser();
 
   const eventId = readString(formData, "event_id");
   if (!eventId) return;
@@ -254,5 +249,39 @@ export async function deleteOrganizationAction(formData: FormData) {
 
   await sql`DELETE FROM organizations WHERE id = ${user.organization_id}`;
   await logout();
+  redirect("/");
+}
+
+async function verifyOrganizationPasscode(organizationCode: string, passcode: string) {
+  await ensureSchema();
+  const code = organizationCode.trim().toUpperCase();
+  const { rows } = await sql`
+    SELECT id, code, admin_passcode_hash
+    FROM organizations
+    WHERE code = ${code}
+      AND active = TRUE
+    LIMIT 1
+  `;
+  const organization = rows[0] as { id: string; code: string; admin_passcode_hash: string } | undefined;
+  if (!organization || !verifyPassword(passcode, organization.admin_passcode_hash)) return null;
+  return organization;
+}
+
+export async function suspendOrganizationFromTopAction(formData: FormData) {
+  const organization = await verifyOrganizationPasscode(readString(formData, "organization_code"), readString(formData, "admin_passcode"));
+  if (!organization) return;
+
+  await sql`UPDATE organizations SET active = FALSE WHERE id = ${organization.id}`;
+  redirect("/");
+}
+
+export async function deleteOrganizationFromTopAction(formData: FormData) {
+  const organization = await verifyOrganizationPasscode(readString(formData, "organization_code"), readString(formData, "admin_passcode"));
+  if (!organization) return;
+
+  const confirmationCode = readString(formData, "confirmation_code").toUpperCase();
+  if (confirmationCode !== organization.code) return;
+
+  await sql`DELETE FROM organizations WHERE id = ${organization.id}`;
   redirect("/");
 }

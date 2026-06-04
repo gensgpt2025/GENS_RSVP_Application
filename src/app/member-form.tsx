@@ -23,11 +23,6 @@ export function MemberForm() {
       {state.message ? <p className={state.needsConfirmation ? "warning-message" : "form-message"}>{state.message}</p> : null}
       {state.needsConfirmation ? <input type="hidden" name="confirm_duplicate" value="yes" /> : null}
 
-      <label>
-        <span>管理者パスコード</span>
-        <input name="admin_passcode" type="password" autoComplete="current-password" required />
-      </label>
-
       <button className={state.needsConfirmation ? "danger-button" : "secondary-button"} type="submit" disabled={pending}>
         <UserPlus size={18} />
         {state.needsConfirmation ? "確認して登録" : "登録"}

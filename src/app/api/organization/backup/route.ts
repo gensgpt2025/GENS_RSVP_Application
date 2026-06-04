@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, verifyAdminPasscode } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const passcode = url.searchParams.get("passcode") ?? "";
-  const user = await verifyAdminPasscode(passcode);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+export async function GET() {
+  const user = await requireUser();
 
   const [organization, members, events, rsvps] = await Promise.all([
     sql`SELECT id, name, code, active, created_at FROM organizations WHERE id = ${user.organization_id}`,
@@ -31,14 +28,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
-  const body = (await request.json()) as { passcode?: string; backup?: { members?: any[]; events?: any[]; rsvps?: any[] } };
-  const user = await verifyAdminPasscode(body.passcode ?? "");
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  const user = await requireUser();
+  const body = (await request.json()) as { backup?: { members?: any[]; events?: any[]; rsvps?: any[] } };
 
   const backup = body.backup ?? {};
   for (const member of backup.members ?? []) {

@@ -8,6 +8,7 @@ const categories = ["練習試合", "県リーグ", "トレーニング"];
 type EventFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   buttonLabel: string;
+  requireAdminPasscode?: boolean;
   defaults?: {
     id?: string;
     category?: string;
@@ -18,7 +19,7 @@ type EventFormProps = {
   };
 };
 
-export function EventForm({ action, buttonLabel, defaults }: EventFormProps) {
+export function EventForm({ action, buttonLabel, requireAdminPasscode = true, defaults }: EventFormProps) {
   const initialCategory = defaults?.category && categories.includes(defaults.category) ? defaults.category : categories[0];
   const [category, setCategory] = useState(initialCategory);
   const needsOpponent = useMemo(() => category === "練習試合" || category === "県リーグ", [category]);
@@ -60,10 +61,12 @@ export function EventForm({ action, buttonLabel, defaults }: EventFormProps) {
         <textarea name="description" rows={4} defaultValue={defaults?.description ?? ""} />
       </label>
 
-      <label>
-        <span>管理者パスコード</span>
-        <input name="admin_passcode" type="password" autoComplete="current-password" required />
-      </label>
+      {requireAdminPasscode ? (
+        <label>
+          <span>管理者パスコード</span>
+          <input name="admin_passcode" type="password" autoComplete="current-password" required />
+        </label>
+      ) : null}
 
       <button className="primary-button" type="submit">
         <CalendarPlus size={18} />

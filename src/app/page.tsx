@@ -111,6 +111,7 @@ export default async function Home() {
         <div className="auth-stack">
           <LoginForm />
           <OrganizationForm />
+          <OrganizationAdminPanel />
         </div>
       </main>
     );
@@ -159,7 +160,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className={isAdmin ? "content-grid" : "content-grid member-content-grid"}>
+      <div className="content-grid">
         <section className="events-panel">
           <div className="section-heading">
             <div>
@@ -244,24 +245,19 @@ export default async function Home() {
                     ))}
                   </form>
 
-                  {isAdmin ? (
-                    <>
-                      <details className="edit-event-panel">
+                  <details className="edit-event-panel">
                     <summary>予定を修正</summary>
-                    <EventForm action={updateEventAction} buttonLabel="修正を保存" defaults={eventFormDefaults(event)} />
+                    <EventForm action={updateEventAction} buttonLabel="修正を保存" requireAdminPasscode={false} defaults={eventFormDefaults(event)} />
                   </details>
 
-                      <EventDeleteForm action={deleteEventAction} eventId={event.id} eventTitle={displayTitle} />
-                    </>
-                  ) : null}
+                  <EventDeleteForm action={deleteEventAction} eventId={event.id} eventTitle={displayTitle} />
                 </article>
               );
             })}
           </div>
         </section>
 
-        {isAdmin ? (
-          <aside className="admin-panel">
+        <aside className="admin-panel">
           <section className="tool-panel">
             <div className="section-heading">
               <div>
@@ -269,7 +265,7 @@ export default async function Home() {
                 <h2>イベント追加</h2>
               </div>
             </div>
-            <EventForm action={createEventAction} buttonLabel="追加" />
+            <EventForm action={createEventAction} buttonLabel="追加" requireAdminPasscode={false} />
           </section>
 
           <section className="tool-panel">
@@ -297,10 +293,6 @@ export default async function Home() {
                     ))}
                 </select>
               </label>
-              <label>
-                <span>管理者パスコード</span>
-                <input name="admin_passcode" type="password" autoComplete="current-password" required />
-              </label>
               <button className="danger-button" type="submit">
                 メンバーを削除
               </button>
@@ -315,9 +307,7 @@ export default async function Home() {
             </div>
           </section>
           <BackupPanel />
-          <OrganizationAdminPanel organizationCode={user.organization_code} />
         </aside>
-        ) : null}
       </div>
     </main>
   );

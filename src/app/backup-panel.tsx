@@ -6,12 +6,11 @@ import { Download, Upload } from "lucide-react";
 export function BackupPanel() {
   const [message, setMessage] = useState("");
 
-  async function downloadBackup(formData: FormData) {
+  async function downloadBackup() {
     setMessage("");
-    const passcode = String(formData.get("admin_passcode") ?? "");
-    const response = await fetch(`/api/organization/backup?passcode=${encodeURIComponent(passcode)}`);
+    const response = await fetch("/api/organization/backup");
     if (!response.ok) {
-      setMessage("管理者パスコードを確認してください。");
+      setMessage("バックアップできませんでした。");
       return;
     }
     const blob = await response.blob();
@@ -32,13 +31,10 @@ export function BackupPanel() {
     const response = await fetch("/api/organization/backup", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        passcode: String(formData.get("admin_passcode") ?? ""),
-        backup,
-      }),
+      body: JSON.stringify({ backup }),
     });
 
-    setMessage(response.ok ? "復旧しました。" : "復旧できませんでした。管理者パスコードとファイルを確認してください。");
+    setMessage(response.ok ? "復旧しました。" : "復旧できませんでした。ファイルを確認してください。");
   }
 
   return (
@@ -50,10 +46,6 @@ export function BackupPanel() {
         </div>
       </div>
       <form action={downloadBackup} className="stack-form">
-        <label>
-          <span>管理者パスコード</span>
-          <input name="admin_passcode" type="password" autoComplete="current-password" required />
-        </label>
         <button className="secondary-button" type="submit">
           <Download size={18} />
           バックアップ
@@ -63,10 +55,6 @@ export function BackupPanel() {
         <label>
           <span>バックアップファイル</span>
           <input name="backup_file" type="file" accept="application/json,.json" required />
-        </label>
-        <label>
-          <span>管理者パスコード</span>
-          <input name="admin_passcode" type="password" autoComplete="current-password" required />
         </label>
         <button className="secondary-button" type="submit">
           <Upload size={18} />
