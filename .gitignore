@@ -5,6 +5,7 @@ node_modules
 .env
 .env*.local
 *.log
+private-notes/
 vercel
 .vercel
 *.tsbuildinfo
