@@ -1,12 +1,12 @@
 import { ArrowLeft, Shield } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { getCurrentUser } from "@/lib/auth";
-import { formatEventRange } from "@/lib/calendar";
+import { eventYear, formatEventRange } from "@/lib/calendar";
 import { attendeeNames, countByStatus, eventDisplayTitle, getEventsWithRsvps } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
-export default async function HistoryPage() {
+export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -22,14 +22,17 @@ export default async function HistoryPage() {
     );
   }
 
-  const events = await getEventsWithRsvps(user.organization_id, "past");
+  const params = await searchParams;
+  const selectedYear = params.year?.match(/^\d{4}$/)?.[0] ?? "";
+  const allEvents = await getEventsWithRsvps(user.organization_id, "past");
+  const events = selectedYear ? allEvents.filter((event) => eventYear(event.start_at) === selectedYear) : allEvents;
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <div>
           <p className="eyebrow">Archive</p>
-          <h1>過去ログ</h1>
+          <h1>{selectedYear ? `${selectedYear}年度 過去ログ` : "過去ログ"}</h1>
         </div>
         <div className="user-chip">
           <a className="ghost-button" href="/calendar">
@@ -51,7 +54,7 @@ export default async function HistoryPage() {
 
       <section className="history-panel">
         {events.length === 0 ? (
-          <p className="empty-state">終了済みイベントはまだありません。</p>
+          <p className="empty-state">{selectedYear ? `${selectedYear}年度の終了済みイベントはありません。` : "終了済みイベントはまだありません。"}</p>
         ) : (
           <div className="history-table-wrap">
             <table className="history-table">
@@ -70,7 +73,7 @@ export default async function HistoryPage() {
                 {events.map((event) => {
                   const attendees = attendeeNames(event.rsvps);
                   return (
-                    <tr key={event.id}>
+                    <tr id={`event-${event.id}`} key={event.id}>
                       <td>{formatEventRange(event.start_at, event.end_at)}</td>
                       <td>{eventDisplayTitle(event)}</td>
                       <td>{event.location || "-"}</td>

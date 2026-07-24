@@ -71,6 +71,27 @@ export function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+export function eventYear(value: string) {
+  const yearPart = new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    timeZone: "Asia/Tokyo",
+  })
+    .formatToParts(new Date(value))
+    .find((part) => part.type === "year");
+
+  return yearPart?.value ?? "";
+}
+
+export function eventScheduleHref(event: { id: string; start_at: string; end_at: string }) {
+  const anchor = `event-${event.id}`;
+
+  if (new Date(event.end_at).getTime() < Date.now()) {
+    return `/history?year=${eventYear(event.start_at)}#${anchor}`;
+  }
+
+  return `/?event=${encodeURIComponent(event.id)}#${anchor}`;
+}
+
 function parts(value: string) {
   const date = new Date(value);
   const items = new Intl.DateTimeFormat("ja-JP", {

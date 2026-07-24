@@ -1,7 +1,7 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Shield } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { getCurrentUser } from "@/lib/auth";
-import { formatEventRange } from "@/lib/calendar";
+import { eventScheduleHref, formatEventRange } from "@/lib/calendar";
 import { eventDisplayTitle, eventMeta, getEventsWithRsvps } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
@@ -197,7 +197,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                     const showOpponent = (meta.type === "match" || meta.type === "league") && meta.opponent;
                     const summary = calendarEventSummary(event);
                     return (
-                      <div className={`calendar-event calendar-event-${summary.kind}`} key={event.id}>
+                      <a
+                        className={`calendar-event calendar-event-${summary.kind}`}
+                        href={eventScheduleHref(event)}
+                        aria-label={`${eventDisplayTitle(event)}のスケジュールを開く`}
+                        key={event.id}
+                      >
                         <strong className="calendar-event-title">{eventDisplayTitle(event)}</strong>
                         <span className="calendar-event-mobile" aria-label={summary.badge}>
                           {summary.badge}
@@ -205,7 +210,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                         <span className="calendar-event-meta">{formatEventRange(event.start_at, event.end_at)}</span>
                         {event.location ? <span className="calendar-event-meta">{event.location}</span> : null}
                         {showOpponent ? <span className="calendar-event-meta">対戦相手: {meta.opponent}</span> : null}
-                      </div>
+                      </a>
                     );
                   })}
                 </div>
@@ -230,7 +235,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               const summary = calendarEventSummary(event);
               const dateParts = eventDateParts(event.start_at);
               return (
-                <article className={`mobile-event-card mobile-event-card-${summary.kind}`} key={event.id}>
+                <a
+                  className={`mobile-event-card mobile-event-card-${summary.kind}`}
+                  href={eventScheduleHref(event)}
+                  aria-label={`${eventDisplayTitle(event)}のスケジュールを開く`}
+                  key={event.id}
+                >
                   <div className="mobile-event-date">
                     <div className="mobile-event-date-line">
                       <strong>{dateParts.date}</strong>
@@ -245,7 +255,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                   <div className="mobile-event-footer">
                     <span>{summary.badge}</span>
                   </div>
-                </article>
+                </a>
               );
             })}
           </div>
