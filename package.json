@@ -13,6 +13,7 @@
     "lint": "tsc --noEmit",
     "cleanup:target-data": "node scripts/delete-target-data.mjs",
     "test:backup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/organization-backup.test.mjs",
+    "test:automatic-backup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/automatic-backup.test.mjs",
     "test:organization-code": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/organization-code.test.mjs",
     "test:security-headers": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/security-headers.test.mjs",
     "test:site-admin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/site-admin-policy.test.mjs",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
+    "@vercel/blob": "^2.3.0",
     "lucide-react": "^0.468.0",
     "next": "15.5.21",
     "react": "^19.0.0",

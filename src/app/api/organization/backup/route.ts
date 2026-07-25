@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { ensureSchema, sql, sqlTransaction } from "@/lib/db";
 import { BackupValidationError, validateOrganizationBackup } from "@/lib/organization-backup";
+import {
+  buildOrganizationBackup,
+  type OrganizationBackupSource,
+} from "@/lib/organization-backup-data";
 import { hashPassword } from "@/lib/security";
 import {
   authenticateSiteAdmin,
@@ -18,13 +22,7 @@ type BackupRequestBody = {
   backup?: unknown;
 };
 
-type OrganizationRow = {
-  id: string;
-  name: string;
-  code: string;
-  active: boolean;
-  created_at: string;
-};
+type OrganizationRow = OrganizationBackupSource;
 
 async function getOrganization(organizationCode: string) {
   await ensureSchema();
@@ -48,33 +46,7 @@ function authenticationError(result: SiteAdminAuthResult) {
 }
 
 async function buildBackupResponse(organization: OrganizationRow) {
-  const [members, events, rsvps] = await Promise.all([
-    sql`SELECT id, name, email, role, active, created_at FROM members WHERE organization_id = ${organization.id} ORDER BY created_at ASC`,
-    sql`SELECT id, sheet_id, title, description, location, start_at, end_at, created_by, created_at FROM events WHERE organization_id = ${organization.id} ORDER BY start_at ASC`,
-    sql`
-      SELECT rsvps.event_id, rsvps.user_id, rsvps.status, rsvps.note, rsvps.updated_at
-      FROM rsvps
-      INNER JOIN events ON events.id = rsvps.event_id
-      WHERE events.organization_id = ${organization.id}
-      ORDER BY rsvps.updated_at ASC
-    `,
-  ]);
-
-  return NextResponse.json({
-    schemaVersion: 1,
-    backupType: "organization",
-    exportedAt: new Date().toISOString(),
-    organization: {
-      id: organization.id,
-      name: organization.name,
-      code: organization.code,
-      active: organization.active,
-      created_at: organization.created_at,
-    },
-    members: members.rows,
-    events: events.rows,
-    rsvps: rsvps.rows,
-  });
+  return NextResponse.json(await buildOrganizationBackup(organization));
 }
 
 async function restoreBackup(organization: OrganizationRow, backupInput: unknown) {
