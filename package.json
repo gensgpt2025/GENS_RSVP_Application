@@ -2,18 +2,24 @@
   "name": "gens-schedule",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "node .next/standalone/server.js",
     "dist": "npm run build && node scripts/create-distribution.mjs",
     "lint": "tsc --noEmit",
-    "cleanup:target-data": "node scripts/delete-target-data.mjs"
+    "cleanup:target-data": "node scripts/delete-target-data.mjs",
+    "security:dependencies": "node scripts/check-security-dependencies.mjs",
+    "security:audit": "npm audit --omit=dev",
+    "security:check": "npm run security:dependencies && npm run security:audit"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
     "lucide-react": "^0.468.0",
-    "next": "^15.1.0",
+    "next": "15.5.21",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -22,5 +28,11 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.23",
+      "sharp": "0.35.3"
+    }
   }
 }
