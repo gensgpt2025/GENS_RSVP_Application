@@ -13,6 +13,7 @@
     "lint": "tsc --noEmit",
     "cleanup:target-data": "node scripts/delete-target-data.mjs",
     "test:backup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/organization-backup.test.mjs",
+    "test:organization-code": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/organization-code.test.mjs",
     "test:security-headers": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/security-headers.test.mjs",
     "test:site-admin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/site-admin-policy.test.mjs",
     "security:dependencies": "node scripts/check-security-dependencies.mjs",

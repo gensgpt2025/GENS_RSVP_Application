@@ -1,9 +1,7 @@
 "use client";
 
-import {
-  changeOrganizationPasscodeFromTopAction,
-  deleteOrganizationFromTopAction,
-} from "@/app/actions";
+import { deleteOrganizationFromTopAction } from "@/app/actions";
+import { OrganizationCodeForm } from "@/app/organization-code-form";
 import { OrganizationForm } from "@/app/organization-form";
 
 function SiteAdminFields() {
@@ -28,20 +26,7 @@ export function OrganizationAdminPanel() {
 
       <OrganizationForm embedded />
 
-      <form action={changeOrganizationPasscodeFromTopAction} className="stack-form member-control-form">
-        <label>
-          <span>団体コード</span>
-          <input name="organization_code" required />
-        </label>
-        <label>
-          <span>新しい団体パスコード</span>
-          <input name="new_admin_passcode" type="password" autoComplete="new-password" required minLength={4} />
-        </label>
-        <SiteAdminFields />
-        <button className="secondary-button" type="submit">
-          団体パスコードを変更
-        </button>
-      </form>
+      <OrganizationCodeForm />
 
       <form
         action={deleteOrganizationFromTopAction}

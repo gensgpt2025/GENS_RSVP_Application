@@ -47,20 +47,11 @@ export function BackupPanel() {
     }
 
     try {
-      const backup = JSON.parse(await file.text()) as {
-        organization?: { code?: unknown };
-      };
+      const backup = JSON.parse(await file.text()) as unknown;
       const targetCode = organizationCode.toUpperCase();
-      const backupCode =
-        typeof backup.organization?.code === "string" ? backup.organization.code.trim().toUpperCase() : "";
-
-      if (!backupCode || backupCode !== targetCode) {
-        setMessage("復旧できませんでした。バックアップ内の団体コードと復旧先の団体コードが一致しません。");
-        return;
-      }
 
       const confirmed = window.confirm(
-        `団体「${targetCode}」へバックアップを復旧します。\n同じIDのデータは上書きされ、現在のその他のデータは残ります。よろしいですか？`,
+        `団体「${targetCode}」へバックアップを復旧します。\n団体IDまたは団体コードが一致するファイルだけ復旧できます。同じIDのデータは上書きされ、現在のその他のデータは残ります。よろしいですか？`,
       );
       if (!confirmed) return;
 

@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { loginAsMember, logout, requireUser } from "@/lib/auth";
-import { ensureSchema, sql } from "@/lib/db";
+import { ensureSchema, sql, sqlTransaction } from "@/lib/db";
+import {
+  normalizeOrganizationCode,
+  organizationCodeValidationMessage,
+  validateOrganizationCodeChange,
+} from "@/lib/organization-code";
 import { hashPassword } from "@/lib/security";
 import {
   authenticateSiteAdmin,
@@ -21,6 +26,11 @@ export type MemberFormState = {
 
 export type OrganizationFormState = {
   message: string;
+};
+
+export type OrganizationCodeFormState = {
+  message: string;
+  success: boolean;
 };
 
 export type SiteAdminOverviewState = {
@@ -157,16 +167,15 @@ export async function createOrganizationAction(_: OrganizationFormState, formDat
   }
 
   const name = readString(formData, "organization_name");
-  const code = readString(formData, "organization_code").toUpperCase();
+  const code = normalizeOrganizationCode(readString(formData, "organization_code"));
   const adminName = readString(formData, "admin_name") || "メンバー";
 
   if (!name || !code) {
     return { message: "団体名と団体コードを入力してください。" };
   }
 
-  if (!/^[A-Z0-9_-]{3,24}$/.test(code)) {
-    return { message: "団体コードは3〜24文字の英数字、ハイフン、アンダーバーで設定してください。" };
-  }
+  const codeError = organizationCodeValidationMessage(code);
+  if (codeError) return { message: codeError };
 
   const organizationId = crypto.randomUUID();
   try {
@@ -184,6 +193,67 @@ export async function createOrganizationAction(_: OrganizationFormState, formDat
   }
 
   return { message: `団体「${name}」を作成しました。団体コード「${code}」でログインできます。` };
+}
+
+export async function changeOrganizationCodeAction(
+  _: OrganizationCodeFormState,
+  formData: FormData,
+): Promise<OrganizationCodeFormState> {
+  const authentication = await authenticateSiteAdminForm(formData);
+  if (!authentication.ok) {
+    return { message: siteAdminAuthMessage(authentication), success: false };
+  }
+
+  const currentCode = normalizeOrganizationCode(readString(formData, "current_organization_code"));
+  const newCode = normalizeOrganizationCode(readString(formData, "new_organization_code"));
+  const confirmationCode = normalizeOrganizationCode(readString(formData, "confirmation_organization_code"));
+  const validationMessage = validateOrganizationCodeChange(currentCode, newCode, confirmationCode);
+  if (validationMessage) {
+    return { message: validationMessage, success: false };
+  }
+
+  await ensureSchema();
+
+  try {
+    const [, renamedOrganization] = await sqlTransaction((transactionSql) => [
+      transactionSql`SELECT pg_advisory_xact_lock(hashtext(${currentCode}))`,
+      transactionSql`
+        WITH renamed AS (
+          UPDATE organizations
+          SET code = ${newCode}
+          WHERE code = ${currentCode}
+          RETURNING id
+        ),
+        invalidated_sessions AS (
+          DELETE FROM sessions
+          WHERE user_id IN (
+            SELECT members.id
+            FROM members
+            INNER JOIN renamed ON renamed.id = members.organization_id
+          )
+        )
+        SELECT id FROM renamed
+      `,
+    ]);
+
+    if (renamedOrganization.rowCount === 0) {
+      return { message: "現在の団体コードに一致する団体が見つかりません。", success: false };
+    }
+  } catch (error) {
+    const databaseError = error as { code?: string };
+    if (databaseError.code === "23505") {
+      return { message: "新しい団体コードはすでに使われています。", success: false };
+    }
+
+    console.error("Organization code change failed.", error);
+    return { message: "団体コードを変更できませんでした。時間をおいて再度お試しください。", success: false };
+  }
+
+  revalidatePath("/");
+  return {
+    message: `団体コードを「${currentCode}」から「${newCode}」へ変更しました。新しいコードをメンバーへ案内してください。`,
+    success: true,
+  };
 }
 
 export async function getSiteAdminOverviewAction(_: SiteAdminOverviewState, formData: FormData): Promise<SiteAdminOverviewState> {

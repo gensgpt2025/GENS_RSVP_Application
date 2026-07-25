@@ -78,7 +78,7 @@ async function buildBackupResponse(organization: OrganizationRow) {
 }
 
 async function restoreBackup(organization: OrganizationRow, backupInput: unknown) {
-  const backup = validateOrganizationBackup(backupInput, organization.code);
+  const backup = validateOrganizationBackup(backupInput, organization.code, organization.id);
   const memberIds = JSON.stringify(backup.members.map((member) => member.id));
   const eventIds = JSON.stringify(backup.events.map((event) => event.id));
   const members = JSON.stringify(

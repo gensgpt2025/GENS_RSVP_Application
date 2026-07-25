@@ -66,6 +66,20 @@ test("rejects a backup for another organization", () => {
   );
 });
 
+test("accepts a backup saved before the organization code changed", () => {
+  const result = validateOrganizationBackup(validBackup(), "NEW-CODE", "organization-1");
+
+  assert.equal(result.organizationId, "organization-1");
+  assert.equal(result.organizationCode, "TEAM1");
+});
+
+test("rejects an old-code backup when the organization ID differs", () => {
+  assert.throws(
+    () => validateOrganizationBackup(validBackup(), "NEW-CODE", "organization-2"),
+    BackupValidationError,
+  );
+});
+
 test("rejects duplicate member IDs", () => {
   const backup = validBackup();
   backup.members.push({ ...backup.members[0] });

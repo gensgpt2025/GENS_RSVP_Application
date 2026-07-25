@@ -36,6 +36,7 @@ export type RestoredRsvp = {
 };
 
 export type ValidatedOrganizationBackup = {
+  organizationId: string;
   organizationCode: string;
   members: RestoredMember[];
   events: RestoredEvent[];
@@ -107,16 +108,23 @@ function unique(values: string[], label: string, normalize = (value: string) => 
   }
 }
 
-export function validateOrganizationBackup(input: unknown, expectedOrganizationCode: string): ValidatedOrganizationBackup {
+export function validateOrganizationBackup(
+  input: unknown,
+  expectedOrganizationCode: string,
+  expectedOrganizationId?: string,
+): ValidatedOrganizationBackup {
   const backup = record(input, "backup");
   if (backup.schemaVersion !== undefined && backup.schemaVersion !== 1) {
     throw new BackupValidationError("Unsupported backup schema version.");
   }
 
   const organization = record(backup.organization, "organization");
+  const organizationId = stringValue(organization, "id", 128);
   const organizationCode = stringValue(organization, "code", 24).toUpperCase();
-  if (organizationCode !== expectedOrganizationCode.trim().toUpperCase()) {
-    throw new BackupValidationError("Backup organization code does not match the restore target.");
+  const codeMatches = organizationCode === expectedOrganizationCode.trim().toUpperCase();
+  const idMatches = Boolean(expectedOrganizationId) && organizationId === expectedOrganizationId;
+  if (!codeMatches && !idMatches) {
+    throw new BackupValidationError("Backup organization does not match the restore target.");
   }
 
   const memberRows = array(backup.members, "members", MAX_MEMBERS);
@@ -205,5 +213,5 @@ export function validateOrganizationBackup(input: unknown, expectedOrganizationC
     "rsvps",
   );
 
-  return { organizationCode, members, events, rsvps };
+  return { organizationId, organizationCode, members, events, rsvps };
 }

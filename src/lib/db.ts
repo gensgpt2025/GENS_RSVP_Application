@@ -135,6 +135,14 @@ async function ensureDefaultOrganization() {
   const existing = await sql`SELECT id FROM organizations WHERE code = ${code} LIMIT 1`;
   if (existing.rows[0]) return String(existing.rows[0].id);
 
+  const firstOrganization = await sql`
+    SELECT id
+    FROM organizations
+    ORDER BY created_at ASC
+    LIMIT 1
+  `;
+  if (firstOrganization.rows[0]) return String(firstOrganization.rows[0].id);
+
   const id = crypto.randomUUID();
   await sql`
     INSERT INTO organizations (id, name, code, admin_passcode_hash)

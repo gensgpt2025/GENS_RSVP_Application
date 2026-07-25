@@ -428,6 +428,11 @@ button:hover,
   font-size: 14px;
 }
 
+.success-message {
+  color: var(--green);
+  font-size: 14px;
+}
+
 .warning-message {
   border: 1px solid rgba(255, 125, 125, 0.32);
   border-radius: 8px;
