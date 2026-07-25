@@ -180,6 +180,40 @@ a {
   margin-bottom: 12px;
 }
 
+.archive-panel {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+}
+
+.archive-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gold);
+}
+
+.archive-panel-heading h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.archive-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.archive-message {
+  margin-top: 12px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
 .site-admin-organization {
   border-top: 1px solid var(--line);
   padding-top: 14px;
