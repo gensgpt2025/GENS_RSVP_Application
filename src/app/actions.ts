@@ -449,6 +449,7 @@ export async function deleteOrganizationFromTopAction(formData: FormData) {
   if (confirmationCode !== code) return;
 
   await ensureSchema();
+  await logout();
   await sql`DELETE FROM organizations WHERE code = ${code}`;
   redirect("/");
 }
