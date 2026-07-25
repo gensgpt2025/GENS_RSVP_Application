@@ -12,6 +12,7 @@
     "dist": "npm run build && node scripts/create-distribution.mjs",
     "lint": "tsc --noEmit",
     "cleanup:target-data": "node scripts/delete-target-data.mjs",
+    "test:backup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/organization-backup.test.mjs",
     "security:dependencies": "node scripts/check-security-dependencies.mjs",
     "security:audit": "npm audit --omit=dev",
     "security:check": "npm run security:dependencies && npm run security:audit"

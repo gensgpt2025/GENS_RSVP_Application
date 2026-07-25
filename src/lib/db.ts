@@ -1,8 +1,15 @@
-import { neon } from "@neondatabase/serverless";
+import {
+  neon,
+  type NeonQueryFunctionInTransaction,
+  type NeonQueryInTransaction,
+} from "@neondatabase/serverless";
 import { hashPassword } from "@/lib/security";
 
 let schemaReady: Promise<void> | null = null;
 let dbClient: ReturnType<typeof neon<false, true>> | null = null;
+type TransactionBuilder = (
+  transactionSql: NeonQueryFunctionInTransaction<false, true>,
+) => NeonQueryInTransaction[];
 
 function getSql() {
   const connectionString = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
@@ -16,6 +23,10 @@ function getSql() {
 
 export function sql(strings: TemplateStringsArray, ...params: unknown[]) {
   return getSql()(strings, ...params);
+}
+
+export function sqlTransaction(queries: TransactionBuilder) {
+  return getSql().transaction(queries, { isolationLevel: "Serializable" });
 }
 
 export async function ensureSchema() {

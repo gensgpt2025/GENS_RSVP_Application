@@ -43,5 +43,8 @@ jobs:
       - name: Check TypeScript
         run: npm run lint
 
+      - name: Test backup validation
+        run: npm run test:backup
+
       - name: Build production application
         run: npm run build

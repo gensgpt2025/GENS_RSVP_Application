@@ -40,18 +40,48 @@ export function BackupPanel() {
     const siteAdminPassword = String(formData.get("site_admin_password") ?? "");
     const file = formData.get("backup_file");
     if (!(file instanceof File)) return;
+    if (file.size > 4_000_000) {
+      setMessage("復旧できませんでした。バックアップファイルは4MB以下にしてください。");
+      return;
+    }
 
     try {
-      const backup = JSON.parse(await file.text());
+      const backup = JSON.parse(await file.text()) as {
+        organization?: { code?: unknown };
+      };
+      const targetCode = organizationCode.toUpperCase();
+      const backupCode =
+        typeof backup.organization?.code === "string" ? backup.organization.code.trim().toUpperCase() : "";
+
+      if (!backupCode || backupCode !== targetCode) {
+        setMessage("復旧できませんでした。バックアップ内の団体コードと復旧先の団体コードが一致しません。");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `団体「${targetCode}」へバックアップを復旧します。\n同じIDのデータは上書きされ、現在のその他のデータは残ります。よろしいですか？`,
+      );
+      if (!confirmed) return;
+
       const response = await fetch("/api/organization/backup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ organizationCode, siteAdminUsername, siteAdminPassword, backup }),
+        body: JSON.stringify({
+          action: "restore",
+          organizationCode,
+          siteAdminUsername,
+          siteAdminPassword,
+          confirmation: `${targetCode}:RESTORE`,
+          backup,
+        }),
       });
+      const result = (await response.json()) as {
+        restored?: { members?: number; events?: number; rsvps?: number };
+      };
 
       setMessage(
         response.ok
-          ? "復旧しました。団体コードで入室して内容を確認してください。"
+          ? `復旧しました（メンバー${result.restored?.members ?? 0}件、予定${result.restored?.events ?? 0}件、出欠${result.restored?.rsvps ?? 0}件）。団体コードで入室して内容を確認してください。`
           : "復旧できませんでした。団体コード、サイト管理者情報、ファイルを確認してください。",
       );
     } catch {
