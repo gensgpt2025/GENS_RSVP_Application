@@ -1,11 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { loginAsMember, logout, requireUser } from "@/lib/auth";
 import { ensureSchema, sql } from "@/lib/db";
 import { hashPassword } from "@/lib/security";
-import { verifySiteAdmin } from "@/lib/site-admin";
+import {
+  authenticateSiteAdmin,
+  getSiteAdminClientAddress,
+  siteAdminAuthMessage,
+} from "@/lib/site-admin";
 import type { RsvpStatus } from "@/lib/types";
 
 export type MemberFormState = {
@@ -34,8 +39,13 @@ function readString(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
 }
 
-function siteAdminIsValid(formData: FormData) {
-  return verifySiteAdmin(readString(formData, "site_admin_username"), readString(formData, "site_admin_password"));
+async function authenticateSiteAdminForm(formData: FormData) {
+  const requestHeaders = await headers();
+  return authenticateSiteAdmin(
+    readString(formData, "site_admin_username"),
+    readString(formData, "site_admin_password"),
+    getSiteAdminClientAddress(requestHeaders),
+  );
 }
 
 function japanDateTimeRangeToIso(value: string) {
@@ -141,8 +151,9 @@ export async function logoutAction() {
 
 export async function createOrganizationAction(_: OrganizationFormState, formData: FormData): Promise<OrganizationFormState> {
   await ensureSchema();
-  if (!siteAdminIsValid(formData)) {
-    return { message: "サイト管理者の認証に失敗しました。" };
+  const authentication = await authenticateSiteAdminForm(formData);
+  if (!authentication.ok) {
+    return { message: siteAdminAuthMessage(authentication) };
   }
 
   const name = readString(formData, "organization_name");
@@ -177,8 +188,9 @@ export async function createOrganizationAction(_: OrganizationFormState, formDat
 
 export async function getSiteAdminOverviewAction(_: SiteAdminOverviewState, formData: FormData): Promise<SiteAdminOverviewState> {
   await ensureSchema();
-  if (!siteAdminIsValid(formData)) {
-    return { message: "サイト管理者の認証に失敗しました。", organizations: [] };
+  const authentication = await authenticateSiteAdminForm(formData);
+  if (!authentication.ok) {
+    return { message: siteAdminAuthMessage(authentication), organizations: [] };
   }
 
   const [organizations, members, events] = await Promise.all([
@@ -359,7 +371,8 @@ export async function deleteEventAction(formData: FormData) {
 }
 
 export async function deleteOrganizationFromTopAction(formData: FormData) {
-  if (!siteAdminIsValid(formData)) return;
+  const authentication = await authenticateSiteAdminForm(formData);
+  if (!authentication.ok) return;
 
   const confirmationCode = readString(formData, "confirmation_code").toUpperCase();
   const code = readString(formData, "organization_code").toUpperCase();
@@ -371,7 +384,8 @@ export async function deleteOrganizationFromTopAction(formData: FormData) {
 }
 
 export async function changeOrganizationPasscodeFromTopAction(formData: FormData) {
-  if (!siteAdminIsValid(formData)) return;
+  const authentication = await authenticateSiteAdminForm(formData);
+  if (!authentication.ok) return;
 
   const code = readString(formData, "organization_code").toUpperCase();
   const newPasscode = readString(formData, "new_admin_passcode");

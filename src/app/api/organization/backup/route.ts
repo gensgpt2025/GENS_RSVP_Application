@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { ensureSchema, sql, sqlTransaction } from "@/lib/db";
 import { BackupValidationError, validateOrganizationBackup } from "@/lib/organization-backup";
 import { hashPassword } from "@/lib/security";
-import { verifySiteAdmin } from "@/lib/site-admin";
+import {
+  authenticateSiteAdmin,
+  getSiteAdminClientAddress,
+  siteAdminAuthMessage,
+  type SiteAdminAuthResult,
+} from "@/lib/site-admin";
 
 type BackupRequestBody = {
   action?: "download" | "restore";
@@ -21,10 +26,10 @@ type OrganizationRow = {
   created_at: string;
 };
 
-async function getOrganizationForSiteAdmin(organizationCode: string, siteAdminUsername: string, siteAdminPassword: string) {
+async function getOrganization(organizationCode: string) {
   await ensureSchema();
   const code = organizationCode.trim().toUpperCase();
-  if (!code || !verifySiteAdmin(siteAdminUsername, siteAdminPassword)) return null;
+  if (!code) return null;
 
   const { rows } = await sql`
     SELECT id, name, code, active, created_at
@@ -33,6 +38,17 @@ async function getOrganizationForSiteAdmin(organizationCode: string, siteAdminUs
     LIMIT 1
   `;
   return (rows[0] as OrganizationRow | undefined) ?? null;
+}
+
+function authenticationError(result: SiteAdminAuthResult) {
+  const response = NextResponse.json(
+    { error: siteAdminAuthMessage(result) },
+    { status: result.status === "locked" ? 429 : 403 },
+  );
+  if (result.retryAfterSeconds > 0) {
+    response.headers.set("Retry-After", String(result.retryAfterSeconds));
+  }
+  return response;
 }
 
 async function buildBackupResponse(organization: OrganizationRow) {
@@ -180,14 +196,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
 
-  const organization = await getOrganizationForSiteAdmin(
-    body.organizationCode ?? "",
+  const authentication = await authenticateSiteAdmin(
     body.siteAdminUsername ?? "",
     body.siteAdminPassword ?? "",
+    getSiteAdminClientAddress(request.headers),
   );
+  if (!authentication.ok) return authenticationError(authentication);
 
+  const organization = await getOrganization(body.organizationCode ?? "");
   if (!organization) {
-    return NextResponse.json({ error: "Invalid organization code or site admin credentials." }, { status: 403 });
+    return NextResponse.json({ error: "団体コードを確認してください。" }, { status: 404 });
   }
 
   if (body.action === "download") {

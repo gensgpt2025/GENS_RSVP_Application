@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { ensureSchema, sql } from "@/lib/db";
-import { verifySiteAdmin } from "@/lib/site-admin";
+import {
+  authenticateSiteAdmin,
+  getSiteAdminClientAddress,
+  siteAdminAuthMessage,
+  type SiteAdminAuthResult,
+} from "@/lib/site-admin";
 
 type ArchiveRequestBody = {
   action?: "download" | "delete";
@@ -43,10 +48,10 @@ function parseYear(value: string | number | undefined) {
   return /^\d{4}$/.test(year) ? Number(year) : null;
 }
 
-async function getOrganizationForSiteAdmin(body: ArchiveRequestBody) {
+async function getOrganization(organizationCode: string) {
   await ensureSchema();
-  const code = body.organizationCode?.trim().toUpperCase() ?? "";
-  if (!code || !verifySiteAdmin(body.siteAdminUsername ?? "", body.siteAdminPassword ?? "")) return null;
+  const code = organizationCode.trim().toUpperCase();
+  if (!code) return null;
 
   const { rows } = await sql`
     SELECT id, name, code, active, created_at
@@ -55,6 +60,17 @@ async function getOrganizationForSiteAdmin(body: ArchiveRequestBody) {
     LIMIT 1
   `;
   return (rows[0] as OrganizationRow | undefined) ?? null;
+}
+
+function authenticationError(result: SiteAdminAuthResult) {
+  const response = NextResponse.json(
+    { error: siteAdminAuthMessage(result) },
+    { status: result.status === "locked" ? 429 : 403 },
+  );
+  if (result.retryAfterSeconds > 0) {
+    response.headers.set("Retry-After", String(result.retryAfterSeconds));
+  }
+  return response;
 }
 
 async function getArchiveData(organization: OrganizationRow, year: number) {
@@ -182,9 +198,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A four-digit year is required." }, { status: 400 });
   }
 
-  const organization = await getOrganizationForSiteAdmin(body);
+  const authentication = await authenticateSiteAdmin(
+    body.siteAdminUsername ?? "",
+    body.siteAdminPassword ?? "",
+    getSiteAdminClientAddress(request.headers),
+  );
+  if (!authentication.ok) return authenticationError(authentication);
+
+  const organization = await getOrganization(body.organizationCode ?? "");
   if (!organization) {
-    return NextResponse.json({ error: "Invalid organization code or site admin credentials." }, { status: 403 });
+    return NextResponse.json({ error: "団体コードを確認してください。" }, { status: 404 });
   }
 
   if (body.action === "delete") {

@@ -76,6 +76,15 @@ async function createSchema() {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS site_admin_login_attempts (
+      identifier_hash TEXT PRIMARY KEY,
+      failed_attempts INTEGER NOT NULL DEFAULT 0,
+      locked_until TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
       organization_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
@@ -113,6 +122,7 @@ async function createSchema() {
   await sql`CREATE INDEX IF NOT EXISTS idx_events_organization_start_at ON events(organization_id, start_at)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_members_organization_id ON members(organization_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_site_admin_login_attempts_updated_at ON site_admin_login_attempts(updated_at)`;
 
   await seedDefaultMember(defaultOrgId);
 }

@@ -46,5 +46,8 @@ jobs:
       - name: Test backup validation
         run: npm run test:backup
 
+      - name: Test site admin lockout policy
+        run: npm run test:site-admin
+
       - name: Build production application
         run: npm run build

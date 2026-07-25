@@ -41,7 +41,8 @@ export function ArchivePanel() {
       });
 
       if (!response.ok) {
-        setMessage("アーカイブできませんでした。団体コード、年度、サイト管理者情報を確認してください。");
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        setMessage(result?.error || "アーカイブできませんでした。団体コード、年度、サイト管理者情報を確認してください。");
         return;
       }
 
@@ -83,10 +84,10 @@ export function ArchivePanel() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(requestBody("delete")),
       });
-      const result = (await response.json()) as { deletedEvents?: number };
+      const result = (await response.json()) as { error?: string; deletedEvents?: number };
 
       if (!response.ok) {
-        setMessage("削除できませんでした。サイト管理者情報を確認してください。");
+        setMessage(result.error || "削除できませんでした。サイト管理者情報を確認してください。");
         return;
       }
 

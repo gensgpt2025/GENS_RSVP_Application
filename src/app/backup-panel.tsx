@@ -19,7 +19,8 @@ export function BackupPanel() {
       body: JSON.stringify({ action: "download", organizationCode, siteAdminUsername, siteAdminPassword }),
     });
     if (!response.ok) {
-      setMessage("バックアップできませんでした。団体コードとサイト管理者情報を確認してください。");
+      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+      setMessage(result?.error || "バックアップできませんでした。団体コードとサイト管理者情報を確認してください。");
       return;
     }
 
@@ -76,13 +77,14 @@ export function BackupPanel() {
         }),
       });
       const result = (await response.json()) as {
+        error?: string;
         restored?: { members?: number; events?: number; rsvps?: number };
       };
 
       setMessage(
         response.ok
           ? `復旧しました（メンバー${result.restored?.members ?? 0}件、予定${result.restored?.events ?? 0}件、出欠${result.restored?.rsvps ?? 0}件）。団体コードで入室して内容を確認してください。`
-          : "復旧できませんでした。団体コード、サイト管理者情報、ファイルを確認してください。",
+          : result.error || "復旧できませんでした。団体コード、サイト管理者情報、ファイルを確認してください。",
       );
     } catch {
       setMessage("復旧できませんでした。JSON形式のバックアップファイルを選んでください。");
