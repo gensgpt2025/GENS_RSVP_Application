@@ -15,12 +15,11 @@ export function getSiteAdminClientAddress(headers: Headers) {
 
 export function siteAdminAuthMessage(result: SiteAdminAuthResult) {
   if (result.status === "locked") {
-    const minutes = Math.max(1, Math.ceil(result.retryAfterSeconds / 60));
-    return `認証を3回失敗したためロックされています。約${minutes}分後にもう一度お試しください。`;
+    return "サイト管理者認証は一時的にロックされています。しばらくしてからもう一度お試しください。";
   }
 
   if (result.status === "invalid") {
-    return `サイト管理者の認証に失敗しました。あと${result.remainingAttempts}回失敗すると15分間ロックされます。`;
+    return "サイト管理者の認証に失敗しました。入力内容を確認してください。";
   }
 
   return "";

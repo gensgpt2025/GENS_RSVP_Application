@@ -21,7 +21,7 @@ test("client address uses the first forwarded address", () => {
   assert.equal(getSiteAdminClientAddress(headers), "203.0.113.10");
 });
 
-test("invalid authentication shows the remaining attempt count", () => {
+test("invalid authentication does not reveal the lockout policy", () => {
   const message = siteAdminAuthMessage({
     ok: false,
     status: "invalid",
@@ -29,11 +29,11 @@ test("invalid authentication shows the remaining attempt count", () => {
     retryAfterSeconds: 0,
   });
 
-  assert.match(message, /あと2回/);
-  assert.match(message, /15分間ロック/);
+  assert.match(message, /認証に失敗/);
+  assert.doesNotMatch(message, /あと2回|3回|15分|ロック/);
 });
 
-test("locked authentication rounds the remaining time up to minutes", () => {
+test("locked authentication does not reveal the remaining time", () => {
   const message = siteAdminAuthMessage({
     ok: false,
     status: "locked",
@@ -41,6 +41,6 @@ test("locked authentication rounds the remaining time up to minutes", () => {
     retryAfterSeconds: 61,
   });
 
-  assert.match(message, /3回失敗/);
-  assert.match(message, /約2分後/);
+  assert.match(message, /一時的にロック/);
+  assert.doesNotMatch(message, /3回|15分|2分|61秒/);
 });

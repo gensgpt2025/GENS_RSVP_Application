@@ -41,14 +41,10 @@ async function getOrganization(organizationCode: string) {
 }
 
 function authenticationError(result: SiteAdminAuthResult) {
-  const response = NextResponse.json(
+  return NextResponse.json(
     { error: siteAdminAuthMessage(result) },
     { status: result.status === "locked" ? 429 : 403 },
   );
-  if (result.retryAfterSeconds > 0) {
-    response.headers.set("Retry-After", String(result.retryAfterSeconds));
-  }
-  return response;
 }
 
 async function buildBackupResponse(organization: OrganizationRow) {
