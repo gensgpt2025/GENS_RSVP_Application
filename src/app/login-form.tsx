@@ -46,7 +46,7 @@ export function LoginForm() {
     <form action={action} className="login-panel">
       <div className="login-title-block">
         <p className="eyebrow">Schedule / RSVP</p>
-        <h1>GENS Schedule Board</h1>
+        <h1>CWG Schedule Board</h1>
         <p className="muted">団体コードを入力して、メンバー名を選択してください。</p>
       </div>
 

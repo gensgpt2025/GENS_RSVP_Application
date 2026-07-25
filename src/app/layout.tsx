@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GENS Schedule",
+  title: "CWG Schedule Board",
   description: "Private schedule and RSVP management",
 };
 

@@ -128,7 +128,7 @@ export default async function Home() {
         <div>
           <p className="eyebrow">Schedule / RSVP</p>
           <h1>{user.organization_name}</h1>
-          <p className="page-subtitle">GENS Schedule Board</p>
+          <p className="page-subtitle">CWG Schedule Board</p>
         </div>
         <div className="user-chip">
           <a className="ghost-button" href="/calendar">
