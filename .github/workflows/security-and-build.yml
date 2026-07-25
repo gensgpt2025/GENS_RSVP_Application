@@ -49,5 +49,8 @@ jobs:
       - name: Test site admin lockout policy
         run: npm run test:site-admin
 
+      - name: Test security headers
+        run: npm run test:security-headers
+
       - name: Build production application
         run: npm run build
