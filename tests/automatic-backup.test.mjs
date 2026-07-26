@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   automaticBackupDate,
@@ -6,6 +7,21 @@ import {
   isCronRequestAuthorized,
   isExpiredAutomaticBackup,
 } from "../src/lib/automatic-backup.ts";
+
+test("schedules backups for the 5th, 15th, and 25th in Japan", () => {
+  const vercelConfig = JSON.parse(
+    readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
+  );
+  const backupCron = vercelConfig.crons.find(
+    (cron) => cron.path === "/api/cron/automatic-backup",
+  );
+
+  assert.equal(backupCron?.schedule, "0 18 4,14,24 * *");
+  assert.equal(
+    automaticBackupDate(new Date("2026-07-24T18:00:00.000Z")),
+    "2026-07-25",
+  );
+});
 
 test("uses the Japan calendar date for backup paths", () => {
   const now = new Date("2026-07-25T18:30:00.000Z");
